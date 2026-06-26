@@ -752,47 +752,25 @@ async function generarInforme() {
   const btn = document.getElementById('btn-generar');
   btn.disabled = true; btn.textContent = '⏳ Generando...';
 
-  const prompt = `Sos Zulma Cabrera, Responsable de RRHH en Grupo GNP, firma de profesionales tributarios (~43 empleados) en Recoleta, CABA.
+  const prompt = `Sos Zulma Cabrera, RRHH de Grupo GNP (firma tributaria, Recoleta, ~43 empleados). Analizás entrevistas de candidatos junior CP.
 
-CONTEXTO GNP:
-- Estructura piramidal: juniors → seniors → gerentes → socios
-- Modalidad híbrida: 2 días home. Presencialidad absoluta en PEAK (abr-jun)
-- PEAK period: sin horas extras pagas, con bono anual
-- Time Report obligatorio
-- Revisión salarial trimestral
-- Plan de carrera claro
-- Asignación de 6 clientes de distintos rubros
+CANDIDATO: ${c.nombre} | ÁREA: ${c.area||'A definir'} | EDAD: ${c.edad||'N/D'} | CARRERA: ${c.carrera||''} | LOCALIDAD: ${c.localidad||''}
 
-CANDIDATO: ${c.nombre}
-ÁREA: ${c.area||'A definir'} | EDAD: ${c.edad||'N/D'} años | CARRERA: ${c.carrera||''} | LOCALIDAD: ${c.localidad||''}
-
-TRANSCRIPCIÓN DE LA ENTREVISTA:
+TRANSCRIPCIÓN:
 ${texto}
 
-INSTRUCCIONES:
-- Escribí en primera persona como si fuera tu análisis directo, no una transcripción
-- NO uses "mencionó", "dijo que", "comentó" — escribí como tu observación
-- NO uses bullets ni listas
-- Reemplazá cualquier mención a "PIC" por "PEAK"
-- Estilo: narrativo, fluido, profesional pero directo
+Escribí en primera persona, estilo narrativo, sin bullets, sin "mencionó/dijo/comentó". Reemplazá "PIC" por "PEAK".
 
-Devolvé EXACTAMENTE dos secciones separadas por ===CONCLUSION===:
+Devolvé exactamente dos bloques separados por ===CONCLUSION===:
 
-SECCIÓN 1 — INFORME SOFT (4-6 párrafos):
-· Quién es: edad, dónde vive, con quién, historia personal relevante
-· Formación: carrera, universidad, materias clave cursadas/aprobadas, promedio si lo mencionó
-· Experiencia laboral: dónde trabajó, qué hacía, por qué se va
-· Recepción del modelo GNP: cómo reaccionó a la propuesta, preguntas que hizo
-· Disponibilidad y pretensión salarial
-· Cualquier dato que no figura en el CV pero surgió en la entrevista
+BLOQUE 1 — INFORME SOFT (4-5 párrafos): quién es y dónde vive, formación y materias clave, experiencia laboral y motivo de salida, cómo recibió el modelo GNP, disponibilidad y pretensión salarial.
 
-SECCIÓN 2 — EN CONCLUSIÓN (1 párrafo):
-Síntesis del perfil en una frase, la variable crítica a validar en la técnica, y la situación operativa (disponibilidad, restricciones, pretensión vs banda).
+BLOQUE 2 — EN CONCLUSIÓN (1 párrafo): síntesis del perfil, variable crítica para la técnica, situación operativa.
 
-Solo el texto, sin títulos ni encabezados.`;
+Solo el texto, sin títulos.`;
 
   try {
-    const data = await callClaude([{ role: 'user', content: prompt }], 1500);
+    const data = await callClaude([{ role: 'user', content: prompt }], 1000);
     const txt = data.content?.[0]?.text || '';
     const partes = txt.split('===CONCLUSION===');
     _informeGenerado = { soft: (partes[0]||'').trim(), conclusion: (partes[1]||'').trim() };

@@ -466,7 +466,7 @@ function showToast(msg, isError) {
 }
 
 function updateStats() {
-  document.getElementById('st-total').textContent = 459;
+  document.getElementById('st-total').textContent = CANDIDATOS.length;
   document.getElementById('st-proceso').textContent = CANDIDATOS.filter(c => c.semaforo === 'azul').length;
   document.getElementById('st-contratados').textContent = CANDIDATOS.filter(c => c.semaforo === 'violeta').length;
   document.getElementById('st-pipeline').textContent = CANDIDATOS.filter(c => c.semaforo === 'amarillo' || c.semaforo === 'verde').length;
@@ -752,14 +752,29 @@ async function generarInforme() {
   const btn = document.getElementById('btn-generar');
   btn.disabled = true; btn.textContent = '⏳ Generando...';
 
-  const prompt = `Sos Zulma Cabrera, RRHH de Grupo GNP (firma tributaria, Recoleta, ~43 empleados). Analizás entrevistas de candidatos junior CP.
+  // Dividir transcripción en dos mitades para evitar timeout de Netlify
+  const mitad = Math.floor(texto.length / 2);
+  const corte = texto.indexOf('\n', mitad);
+  const parte1 = texto.substring(0, corte > 0 ? corte : mitad);
+  const parte2 = texto.substring(corte > 0 ? corte : mitad);
 
-CANDIDATO: ${c.nombre} | ÁREA: ${c.area||'A definir'} | EDAD: ${c.edad||'N/D'} | CARRERA: ${c.carrera||''} | LOCALIDAD: ${c.localidad||''}
+  const cabecera = `Candidato: ${c.nombre} | Área: ${c.area||'A definir'} | Edad: ${c.edad||'N/D'} | Carrera: ${c.carrera||''} | Localidad: ${c.localidad||''}`;
 
-TRANSCRIPCIÓN:
-${texto}
+  const prompt1 = `Sos Zulma Cabrera, RRHH de Grupo GNP (firma tributaria, Recoleta). Leé esta PRIMERA PARTE de una transcripción de entrevista y extraé los datos clave del candidato. No redactes el informe todavía, solo listá los puntos importantes que encontrás.
 
-Escribí en primera persona, estilo narrativo, sin bullets, sin "mencionó/dijo/comentó". Reemplazá "PIC" por "PEAK".
+${cabecera}
+
+PRIMERA PARTE DE LA TRANSCRIPCIÓN:
+${parte1}`;
+
+  const prompt2 = `Sos Zulma Cabrera, RRHH de Grupo GNP (firma tributaria, Recoleta). Leé esta SEGUNDA PARTE de la transcripción y completá el análisis.
+
+${cabecera}
+
+SEGUNDA PARTE DE LA TRANSCRIPCIÓN:
+${parte2}
+
+Con todo lo que surge de ambas partes, redactá el informe final en primera persona, estilo narrativo, sin bullets, sin "mencionó/dijo/comentó". Reemplazá "PIC" por "PEAK".
 
 Devolvé exactamente dos bloques separados por ===CONCLUSION===:
 
@@ -770,8 +785,18 @@ BLOQUE 2 — EN CONCLUSIÓN (1 párrafo): síntesis del perfil, variable crític
 Solo el texto, sin títulos.`;
 
   try {
-    const data = await callClaude([{ role: 'user', content: prompt }], 1000);
-    const txt = data.content?.[0]?.text || '';
+    btn.textContent = '⏳ Parte 1/2...';
+    const data1 = await callClaude([{ role: 'user', content: prompt1 }], 600);
+    const resumen1 = data1.content?.[0]?.text || '';
+
+    btn.textContent = '⏳ Parte 2/2...';
+    const data2 = await callClaude([
+      { role: 'user', content: prompt1 },
+      { role: 'assistant', content: resumen1 },
+      { role: 'user', content: prompt2 }
+    ], 1000);
+
+    const txt = data2.content?.[0]?.text || '';
     const partes = txt.split('===CONCLUSION===');
     _informeGenerado = { soft: (partes[0]||'').trim(), conclusion: (partes[1]||'').trim() };
     document.getElementById('trans-soft').textContent = _informeGenerado.soft;

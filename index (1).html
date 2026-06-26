@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline GNP 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* ══ RESET & VARS ══ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #1a2744; --gold: #c9a84c; --white: #fff;
+    --bg: #f5f2ec; --gray-light: #f9f7f3; --gray-mid: #e8e4dc;
+    --text: #1a1a1a; --text-muted: #666;
+    --azul: #1a5fa8; --verde: #2d7a4f; --rojo: #b8332a;
+    --violeta: #5b3d8f; --amarillo: #d4a017; --negro: #444;
+  }
+  body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ══ LOGIN ══ */
+  #login-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--navy);
+  }
+  .login-box {
+    background: #fff; border-radius: 16px; padding: 48px 40px;
+    width: 380px; max-width: 94vw; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .login-logo { font-size: 24px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+  .login-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; }
+  .form-field { margin-bottom: 16px; }
+  .form-field label { display: block; font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .form-field input { width: 100%; padding: 11px 14px; border: 1.5px solid var(--gray-mid); border-radius: 8px; font-size: 15px; outline: none; transition: border .2s; }
+  .form-field input:focus { border-color: var(--navy); }
+  .btn-primary { width: 100%; padding: 13px; background: var(--navy); color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background .2s; }
+  .btn-primary:hover { background: #0d1f3c; }
+  .btn-primary:disabled { background: #999; cursor: wait; }
+  .login-error { color: var(--rojo); font-size: 13px; margin-top: 12px; text-align: center; display: none; }
+
+  /* ══ APP ══ */
+  #app { display: none; height: 100vh; flex-direction: column; }
+  #app.visible { display: flex; }
+
+  /* Header */
+  .header {
+    background: var(--navy); color: #fff; padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .header-left h1 { font-size: 18px; font-weight: 700; }
+  .header-left p { font-size: 11px; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .stat-bar { display: flex; gap: 20px; background: rgba(255,255,255,.08); padding: 8px 16px; border-radius: 8px; }
+  .stat { text-align: center; }
+  .stat-num { font-size: 20px; font-weight: 700; color: var(--gold); line-height: 1; }
+  .stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; color: rgba(255,255,255,.6); margin-top: 2px; }
+  .btn-sm { font-size: 12px; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-weight: 500; border: 1px solid rgba(255,255,255,.3); background: transparent; color: #fff; transition: all .2s; }
+  .btn-sm:hover { background: rgba(255,255,255,.1); }
+  .btn-sm.gold { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+  #sync-status { font-size: 11px; color: rgba(255,255,255,.5); }
+
+  /* Filters */
+  .filters { padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--gray-mid); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+  .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--gray-mid); background: #fff; cursor: pointer; font-size: 12px; font-weight: 500; transition: all .2s; white-space: nowrap; }
+  .filter-btn:hover { border-color: var(--navy); }
+  .filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .filter-btn.s-azul.active { background: var(--azul); border-color: var(--azul); }
+  .filter-btn.s-violeta.active { background: var(--violeta); border-color: var(--violeta); }
+  .filter-btn.s-rojo.active { background: var(--rojo); border-color: var(--rojo); }
+  .filter-btn.s-amarillo.active { background: #b8860b; border-color: #b8860b; }
+  .search-input { padding: 6px 12px; border: 1px solid var(--gray-mid); border-radius: 20px; font-size: 12px; outline: none; width: 160px; }
+
+  /* Main layout */
+  .main { display: grid; grid-template-columns: 1fr 1fr; flex: 1; overflow: hidden; }
+
+  /* Left panel */
+  .left-panel { overflow-y: auto; border-right: 1px solid var(--gray-mid); }
+  .panel-header { padding: 12px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); border-bottom: 1px solid var(--gray-mid); display: flex; justify-content: space-between; }
+
+  /* Candidate row */
+  .cand-row {
+    padding: 12px 16px; border-bottom: 1px solid var(--gray-light);
+    cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 10px;
+  }
+  .cand-row:hover { background: var(--gray-light); }
+  .cand-row.selected { background: #e8f0fb; }
+  .sem-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .sem-azul { background: var(--azul); }
+  .sem-violeta { background: var(--violeta); }
+  .sem-amarillo { background: var(--amarillo); }
+  .sem-rojo { background: var(--rojo); }
+  .sem-negro { background: var(--negro); }
+  .sem-verde { background: var(--verde); }
+  .cand-info { flex: 1; min-width: 0; }
+  .cand-nombre { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cand-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .cand-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+  .badge { font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 500; }
+  .badge-area { background: var(--gold); color: var(--navy); }
+  .badge-estado { background: var(--gray-mid); color: var(--text); }
+  .badge-informe { background: #1a5fa820; color: var(--azul); }
+
+  /* Right panel */
+  .right-panel { overflow-y: auto; background: #fff; }
+  .empty-state { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 13px; text-align: center; padding: 40px; }
+
+  /* Detail */
+  .detail-header { padding: 20px 24px; border-bottom: 1px solid var(--gray-mid); }
+  .detail-nombre { font-size: 22px; font-weight: 700; color: var(--navy); }
+  .detail-badges { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .dbadge { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 500; }
+  .dbadge-sem { color: #fff; }
+  .dbadge-gray { background: var(--gray-light); border: 1px solid var(--gray-mid); }
+  .dbadge-blue { background: #e8f0fb; color: var(--azul); border: 1px solid #c5d8f5; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid var(--gray-mid); padding: 0 24px; }
+  .tab { padding: 10px 16px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-muted); font-weight: 500; transition: all .2s; }
+  .tab:hover { color: var(--navy); }
+  .tab.active { color: var(--navy); border-bottom-color: var(--navy); }
+
+  /* Tab content */
+  .tab-content { padding: 24px; }
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); margin-bottom: 8px; margin-top: 20px; }
+  .section-title:first-child { margin-top: 0; }
+  .editable-block {
+    background: var(--gray-light); border: 1px solid var(--gray-mid);
+    border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.7;
+    cursor: text; min-height: 60px; white-space: pre-wrap;
+  }
+  .editable-block:hover { border-color: #aaa; }
+  .editable-block.editing { background: #fff; border-color: var(--navy); }
+  .editable-block textarea { width: 100%; border: none; background: transparent; font-size: 13px; line-height: 1.7; resize: none; outline: none; min-height: 80px; font-family: inherit; }
+  .edit-hint { font-size: 10px; color: var(--text-muted); text-align: right; margin-top: 4px; }
+  .save-btn { padding: 6px 14px; background: var(--navy); color: #fff; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; }
+
+  /* Fields grid */
+  .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-item label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); display: block; margin-bottom: 4px; }
+  .field-item .field-val { font-size: 13px; font-weight: 500; }
+  .field-item input, .field-item select, .field-item textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--gray-mid);
+    border-radius: 6px; font-size: 13px; font-family: inherit; outline: none;
+  }
+  .field-item input:focus, .field-item select:focus { border-color: var(--navy); }
+  .field-item.full { grid-column: span 2; }
+
+  /* Semaforo selector */
+  .sem-selector { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sem-opt { padding: 5px 12px; border-radius: 20px; border: 2px solid var(--gray-mid); cursor: pointer; font-size: 12px; font-weight: 500; transition: all .2s; }
+  .sem-opt:hover { border-color: #888; }
+  .sem-opt.selected-azul { background: var(--azul); color: #fff; border-color: var(--azul); }
+  .sem-opt.selected-violeta { background: var(--violeta); color: #fff; border-color: var(--violeta); }
+  .sem-opt.selected-amarillo { background: var(--amarillo); color: #fff; border-color: var(--amarillo); }
+  .sem-opt.selected-rojo { background: var(--rojo); color: #fff; border-color: var(--rojo); }
+  .sem-opt.selected-negro { background: var(--negro); color: #fff; border-color: var(--negro); }
+  .sem-opt.selected-verde { background: var(--verde); color: #fff; border-color: var(--verde); }
+
+  /* Saving indicator */
+  .saving-toast {
+    position: fixed; bottom: 20px; right: 20px; background: var(--verde);
+    color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px;
+    font-weight: 500; opacity: 0; transition: opacity .3s; z-index: 999;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  }
+  .saving-toast.show { opacity: 1; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 500; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: #fff; border-radius: 12px; padding: 28px; width: 640px; max-width: 96vw; max-height: 88vh; overflow-y: auto; }
+  .modal-title { font-size: 18px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+  .modal-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
+
+  /* CV Upload */
+  .upload-area {
+    border: 2px dashed var(--gray-mid); border-radius: 10px; padding: 28px;
+    text-align: center; cursor: pointer; transition: all .2s;
+  }
+  .upload-area:hover, .upload-area.drag { border-color: var(--navy); background: var(--gray-light); }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    .main { grid-template-columns: 1fr; }
+    .right-panel { display: none; position: fixed; inset: 0; z-index: 100; }
+    .right-panel.mobile-open { display: block; }
+    .stat-bar { display: none; }
+    .header-left p { display: none; }
+    #back-btn { display: block !important; }
+  }
+  #back-btn { display: none; padding: 8px 14px; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3); color: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Grupo GNP</div>
+    <div class="login-sub">Pipeline de Selección 2026</div>
+    <div class="form-field">
+      <label>Usuario</label>
+      <input type="text" id="inp-user" placeholder="usuario" autocomplete="username" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <div class="form-field">
+      <label>Contraseña</label>
+      <input type="password" id="inp-pwd" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <button class="btn-primary" onclick="login()" id="btn-login">Ingresar</button>
+    <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <h1>Grupo GNP — Pipeline 2026</h1>
+      <p>PROCESO JUNIOR CP · ANUALES · BPO · AUDITORÍA</p>
+    </div>
+    <div class="header-right">
+      <div class="stat-bar">
+        <div class="stat"><div class="stat-num" id="st-total">—</div><div class="stat-label">Total</div></div>
+        <div class="stat"><div class="stat-num" id="st-proceso" style="color:#6ab0f5">—</div><div class="stat-label">En proceso</div></div>
+        <div class="stat"><div class="stat-num" id="st-contratados" style="color:#a78bdb">—</div><div class="stat-label">Ingresados</div></div>
+        <div class="stat"><div class="stat-num" id="st-pipeline" style="color:#e6c068">—</div><div class="stat-label">Pipeline</div></div>
+      </div>
+      <span id="sync-status"></span>
+      <button class="btn-sm" onclick="abrirModalCV()">📄 CV</button>
+      <button class="btn-sm" onclick="abrirModalTranscripcion()">✨ Informe</button>
+      <button id="back-btn" onclick="cerrarDetalle()">← Volver</button>
+      <button class="btn-sm" onclick="logout()">⎋ Salir</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('todos',this)">Todos</button>
+    <button class="filter-btn s-azul" onclick="setFilter('azul',this)">🔵 En proceso</button>
+    <button class="filter-btn s-violeta" onclick="setFilter('violeta',this)">🟣 Contratados</button>
+    <button class="filter-btn s-rojo" onclick="setFilter('rojo',this)">🔴 Descartados</button>
+    <button class="filter-btn s-amarillo" onclick="setFilter('amarillo',this)">🟡 Pipeline futuro</button>
+    <button class="filter-btn" onclick="setFilter('informe',this)">★ Con informe</button>
+    <button class="filter-btn" onclick="setFilter('anuales',this)">📁 Anuales</button>
+    <button class="filter-btn" onclick="setFilter('bpo',this)">📁 BPO</button>
+    <button class="filter-btn" onclick="setFilter('auditoria',this)">📁 Auditoría</button>
+    <button class="filter-btn" onclick="mostrarEstadisticas()">📊 Estadísticas</button>
+    <input type="text" class="search-input" placeholder="🔍 Buscar..." oninput="buscar(this.value)">
+  </div>
+
+  <div class="main">
+    <div class="left-panel">
+      <div class="panel-header">
+        <span>CANDIDATOS</span>
+        <span id="count-badge" style="background:var(--navy);color:#fff;padding:2px 8px;border-radius:10px;font-size:10px"></span>
+      </div>
+      <div id="candidate-list"></div>
+    </div>
+    <div class="right-panel" id="right-panel">
+      <div class="empty-state">
+        <div>
+          <div style="font-size:32px;margin-bottom:8px">👆</div>
+          <div>Seleccioná un candidato para ver su ficha</div>
+          <div style="font-size:11px;margin-top:4px">Los candidatos con ★ tienen informe</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="saving-toast" id="toast"></div>
+
+<!-- MODAL TRANSCRIPCIÓN -->
+<div class="modal-overlay" id="modal-transcripcion">
+  <div class="modal-box">
+    <div class="modal-title">✨ Generar informe</div>
+    <div class="modal-sub" id="trans-candidato-nombre">—</div>
+    <div class="form-field">
+      <label>Transcripción de Teams o notas de la entrevista</label>
+      <textarea id="trans-texto" rows="10" style="width:100%;padding:11px;border:1.5px solid var(--gray-mid);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none" placeholder="Pegá la transcripción..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn-primary" id="btn-generar" onclick="generarInforme()" style="padding:10px 20px;width:auto">✨ Generar</button>
+      <button onclick="document.getElementById('modal-transcripcion').classList.remove('open')" style="padding:10px 16px;border:1px solid var(--gray-mid);background:#fff;border-radius:8px;cursor:pointer;font-size:14px">Cancelar</button>
+    </div>
+    <div id="trans-resultado" style="display:none;margin-top:20px">
+      <div class="section-title">INFORME SOFT GENERADO</div>
+      <div id="trans-soft" style="background:var(--gray-light);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;white-space:pre-wrap;margin-bottom:12px"></div>
+      <div class="section-title">EN CONCLUSIÓN</div>
+      <div id="trans-conclusion" style="background:var(--gray-light);padding:14px;border-radius:8px;font-size:13px;line-height:1.7;white-space:pre-wrap;margin-bottom:16px"></div>
+      <button onclick="aplicarInforme()" style="padding:10px 20px;background:var(--verde);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">✅ Aplicar a la ficha</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CV -->
+<div class="modal-overlay" id="modal-cv">
+  <div class="modal-box">
+    <div class="modal-title">📄 Procesar CV</div>
+    <div class="modal-sub">Subí el archivo o pegá el texto → Claude extrae los datos</div>
+    <div id="cv-step-1">
+      <div class="form-field">
+        <label>Fuente</label>
+        <select id="cv-fuente" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray-mid);border-radius:8px;font-size:14px">
+          <option>LinkedIn — Headhunting manual</option>
+          <option>LinkedIn Anuncio</option>
+          <option>Evento — EconTech UBA</option>
+          <option>Bolsa Universitaria — UADE</option>
+          <option>Bolsa Universitaria — UBA</option>
+          <option>CV espontáneo</option>
+          <option>Cátedra / Docencia</option>
+          <option>Referido interno</option>
+        </select>
+      </div>
+      <div class="upload-area" id="cv-drop-area" onclick="document.getElementById('cv-file').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="handleDrop(event)">
+        <div style="font-size:32px;margin-bottom:8px">📄</div>
+        <div style="font-weight:600;color:var(--navy)">Arrastrá o hacé clic</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">PDF · Word (.docx) · JPG · PNG</div>
+        <input type="file" id="cv-file" accept=".pdf,.docx,.jpg,.jpeg,.png" style="display:none" onchange="handleFile(this.files[0])">
+      </div>
+      <div id="file-status" style="font-size:12px;margin:8px 0;display:none"></div>
+      <div style="text-align:center;font-size:12px;color:#aaa;margin:10px 0">— o pegá el texto —</div>
+      <textarea id="cv-texto" rows="5" style="width:100%;padding:11px;border:1.5px solid var(--gray-mid);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none" placeholder="Texto del CV..."></textarea>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn-primary" id="btn-procesar" onclick="procesarCV()" style="width:auto;padding:10px 20px">✨ Procesar</button>
+        <button onclick="cerrarModalCV()" style="padding:10px 16px;border:1px solid var(--gray-mid);background:#fff;border-radius:8px;cursor:pointer">Cancelar</button>
+      </div>
+    </div>
+    <div id="cv-step-2" style="display:none">
+      <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:14px">Revisá los datos extraídos:</div>
+      <div class="fields-grid">
+        <div class="field-item"><label>Nombre</label><input id="cr-nombre"></div>
+        <div class="field-item"><label>Edad</label><input id="cr-edad" type="number"></div>
+        <div class="field-item"><label>Localidad</label><input id="cr-localidad"></div>
+        <div class="field-item"><label>Celular</label><input id="cr-celular"></div>
+        <div class="field-item full"><label>Mail</label><input id="cr-mail"></div>
+        <div class="field-item full"><label>Carrera</label><input id="cr-carrera"></div>
+        <div class="field-item full"><label>Experiencia</label><textarea id="cr-experiencia" rows="3" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;font-family:inherit;resize:none;outline:none"></textarea></div>
+        <div class="field-item"><label>Área</label>
+          <select id="cr-area"><option>Anuales</option><option>BPO</option><option>Auditoría</option><option>Contabilidad</option><option>A definir</option></select></div>
+        <div class="field-item"><label>Semáforo</label>
+          <select id="cr-semaforo"><option value="amarillo">🟡 Pipeline futuro</option><option value="verde">🟢 Por contactar</option><option value="azul">🔵 En proceso</option><option value="rojo">🔴 No apto</option></select></div>
+        <div class="field-item full"><label>Evaluación</label><textarea id="cr-eval" rows="3" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;font-family:inherit;resize:none;outline:none"></textarea></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button onclick="agregarCV()" style="padding:10px 20px;background:var(--verde);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">✅ Agregar al pipeline</button>
+        <button onclick="document.getElementById('cv-step-1').style.display='';document.getElementById('cv-step-2').style.display='none'" style="padding:10px 16px;border:1px solid var(--gray-mid);background:#fff;border-radius:8px;cursor:pointer">← Volver</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://gtgnzfjvufqkrrbscccd.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0Z256Zmp2dWZxa3JyYnNjY2NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjY4NzMsImV4cCI6MjA5NzkwMjg3M30.LJ1F8lu4h55m5cVfPM0oXzoKAOA32E9u98gPLajQaBs';
+const CLAUDE_KEY = ''; // Key is handled server-side via Netlify function // Zul: reemplazá con tu API key de Anthropic
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let CANDIDATOS = [];
+let sesion = null;
+let filtroActivo = 'todos';
+let busquedaActiva = '';
+let candidatoSeleccionado = null;
+let tabActiva = 'informe';
+let _candidatoTranscripcion = null;
+let _informeGenerado = null;
+let _cvFileData = null;
+
+// ══ AUTH ══
+async function login() {
+  const user = document.getElementById('inp-user').value.trim().toLowerCase();
+  const pwd = document.getElementById('inp-pwd').value;
+  const err = document.getElementById('login-error');
+  const btn = document.getElementById('btn-login');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Verificando...';
+
+  const { data, error } = await sb.from('usuarios')
+    .select('*').eq('username', user).eq('activo', true).single();
+
+  if (error || !data) { err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Ingresar'; return; }
+  if (btoa(pwd) !== data.password_hash) { err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Ingresar'; return; }
+
+  sesion = data;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  await cargarCandidatos();
+}
+
+function logout() {
+  sesion = null; CANDIDATOS = [];
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ══ DATA ══
+async function cargarCandidatos() {
+  setSyncStatus('⏳ Cargando...');
+  const { data, error } = await sb.from('candidatos').select('*').order('nombre');
+  if (error) { setSyncStatus('❌ Error al cargar'); return; }
+  CANDIDATOS = data || [];
+  setSyncStatus('✓ ' + CANDIDATOS.length + ' candidatos');
+  renderLista();
+  updateStats();
+}
+
+async function guardarCandidato(c) {
+  setSyncStatus('💾 Guardando...');
+  const row = candidatoToRow(c);
+  const { error } = await sb.from('candidatos').upsert(row, { onConflict: 'id' });
+  if (error) { setSyncStatus('❌ Error'); showToast('❌ Error al guardar: ' + error.message, true); }
+  else { setSyncStatus('✓ Guardado'); showToast('✅ Guardado automáticamente'); }
+}
+
+function candidatoToRow(c) {
+  return {
+    id: c.id, nombre: c.nombre, edad: c.edad || null,
+    localidad: c.localidad || '', celular: c.celular || '', mail: c.mail || '',
+    carrera: c.carrera || '', experiencia: c.experiencia || '',
+    fuente: c.fuente || '', area: c.area || '',
+    semaforo: c.semaforo || 'amarillo', estado: c.estado || 'Pipeline futuro',
+    etapa: c.etapa || 'soft', resumen: c.resumen || '',
+    evaluacion: c.evaluacion || '', entrevista1: c.entrevista1 || '—',
+    entrevista2: c.entrevista2 || '—', has_report: c.has_report || c.hasReport || false,
+    proximo: c.proximo || false, distancia: c.distancia || '',
+    cv_link: c.cv_link || c.cvLink || '',
+    informe_soft: c.informe_soft || (c.informe && c.informe.soft) || '',
+    informe_tecnico: c.informe_tecnico || (c.informe && c.informe.tecnico) || '',
+    informe_conclusion: c.informe_conclusion || (c.informe && c.informe.conclusion) || '',
+    propuesta: c.propuesta || '',
+    acuerdo: c.acuerdo || {}, motivo_baja: c.motivo_baja || {},
+    tecnica_info: c.tecnica_info || {}, tercera_info: c.tercera_info || {},
+    updated_at: new Date().toISOString()
+  };
+}
+
+// ══ UI ══
+function setSyncStatus(msg) { document.getElementById('sync-status').textContent = msg; }
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? 'var(--rojo)' : 'var(--verde)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function updateStats() {
+  document.getElementById('st-total').textContent = 459;
+  document.getElementById('st-proceso').textContent = CANDIDATOS.filter(c => c.semaforo === 'azul').length;
+  document.getElementById('st-contratados').textContent = CANDIDATOS.filter(c => c.semaforo === 'violeta').length;
+  document.getElementById('st-pipeline').textContent = CANDIDATOS.filter(c => c.semaforo === 'amarillo' || c.semaforo === 'verde').length;
+}
+
+function getLista() {
+  return CANDIDATOS.filter(c => {
+    if (filtroActivo === 'azul' && c.semaforo !== 'azul') return false;
+    if (filtroActivo === 'violeta' && c.semaforo !== 'violeta') return false;
+    if (filtroActivo === 'rojo' && c.semaforo !== 'rojo' && c.semaforo !== 'negro') return false;
+    if (filtroActivo === 'amarillo' && c.semaforo !== 'amarillo' && c.semaforo !== 'verde') return false;
+    if (filtroActivo === 'informe' && !c.has_report && !c.hasReport) return false;
+    if (filtroActivo === 'anuales' && !(c.area||'').toLowerCase().includes('anual')) return false;
+    if (filtroActivo === 'bpo' && !(c.area||'').toLowerCase().includes('mensual') && !(c.area||'').toLowerCase().includes('bpo') && !(c.area||'').toLowerCase().includes('contab')) return false;
+    if (filtroActivo === 'auditoria' && !(c.area||'').toLowerCase().includes('audit')) return false;
+    if (busquedaActiva && !(c.nombre||'').toLowerCase().includes(busquedaActiva)) return false;
+    return true;
+  });
+}
+
+function renderLista() {
+  const lista = getLista();
+  document.getElementById('count-badge').textContent = lista.length;
+  const semColor = { azul: 'var(--azul)', violeta: 'var(--violeta)', amarillo: 'var(--amarillo)', rojo: 'var(--rojo)', negro: 'var(--negro)', verde: 'var(--verde)' };
+  document.getElementById('candidate-list').innerHTML = lista.map(c => `
+    <div class="cand-row ${candidatoSeleccionado === c.id ? 'selected' : ''}" onclick="selectCandidato('${c.id}')">
+      <div class="sem-dot" style="background:${semColor[c.semaforo]||'#999'}"></div>
+      <div class="cand-info">
+        <div class="cand-nombre">${c.has_report || c.hasReport ? '★ ' : ''}${c.nombre}</div>
+        <div class="cand-sub">${c.edad ? c.edad + ' años · ' : ''}${c.localidad || ''}</div>
+        <div class="cand-badges">
+          ${c.area ? `<span class="badge badge-area">${c.area}</span>` : ''}
+          <span class="badge badge-estado">${c.estado || ''}</span>
+          ${(c.has_report || c.hasReport) ? '<span class="badge badge-informe">Informe</span>' : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setFilter(f, btn) {
+  if (f === 'estadisticas') { mostrarEstadisticas(); return; }
+  filtroActivo = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderLista();
+}
+
+function buscar(val) { busquedaActiva = val.toLowerCase().trim(); renderLista(); }
+
+function selectCandidato(id) {
+  candidatoSeleccionado = id;
+  tabActiva = 'informe';
+  renderLista();
+  renderDetalle();
+  // Mobile
+  document.getElementById('right-panel').classList.add('mobile-open');
+}
+
+function cerrarDetalle() {
+  document.getElementById('right-panel').classList.remove('mobile-open');
+}
+
+function renderDetalle() {
+  const c = CANDIDATOS.find(x => x.id === candidatoSeleccionado);
+  if (!c) return;
+  const semColor = { azul: 'var(--azul)', violeta: 'var(--violeta)', amarillo: 'var(--amarillo)', rojo: 'var(--rojo)', negro: 'var(--negro)', verde: 'var(--verde)' };
+  const semLabel = { azul: 'En proceso', violeta: 'Contratado', amarillo: 'Pipeline futuro', rojo: 'Descartado', negro: 'Se bajó', verde: 'Por contactar' };
+
+  const tabs = [
+    { id: 'informe', label: 'Informe' },
+    { id: 'pipeline', label: 'Datos' },
+    { id: 'estado', label: 'Estado' },
+    ...(c.semaforo === 'violeta' ? [{ id: 'acuerdo', label: '🤝 Acuerdo' }] : []),
+    ...((c.semaforo === 'rojo' || c.semaforo === 'negro') ? [{ id: 'baja', label: '📋 Baja' }] : [])
+  ];
+
+  document.getElementById('right-panel').innerHTML = `
+    <div class="detail-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div class="detail-nombre">${c.nombre}</div>
+        ${c.cv_link || c.cvLink ? `<a href="${c.cv_link||c.cvLink}" target="_blank" style="font-size:12px;color:var(--azul);text-decoration:none;padding:6px 12px;border:1px solid var(--azul);border-radius:6px">📎 Ver CV</a>` : ''}
+      </div>
+      <div class="detail-badges" style="margin-top:10px">
+        <span class="dbadge dbadge-sem" style="background:${semColor[c.semaforo]||'#999'}">${semLabel[c.semaforo]||c.semaforo}</span>
+        ${c.area ? `<span class="dbadge dbadge-gray">${c.area}</span>` : ''}
+        ${c.edad ? `<span class="dbadge dbadge-gray">${c.edad} años</span>` : ''}
+        ${c.localidad ? `<span class="dbadge dbadge-gray">📍 ${c.localidad}</span>` : ''}
+        ${(c.has_report||c.hasReport) ? `<span class="dbadge dbadge-blue">★ Con informe</span>` : ''}
+      </div>
+    </div>
+    <div class="tabs">
+      ${tabs.map(t => `<div class="tab ${tabActiva===t.id?'active':''}" onclick="setTab('${t.id}')">${t.label}</div>`).join('')}
+    </div>
+    <div class="tab-content" id="tab-content"></div>
+  `;
+  renderTab();
+}
+
+function setTab(t) { tabActiva = t; renderDetalle(); }
+
+function renderTab() {
+  const c = CANDIDATOS.find(x => x.id === candidatoSeleccionado);
+  if (!c) return;
+  const cont = document.getElementById('tab-content');
+
+  if (tabActiva === 'informe') {
+    const soft = c.informe_soft || (c.informe && c.informe.soft) || '';
+    const tec = c.informe_tecnico || (c.informe && c.informe.tecnico) || '';
+    const conc = c.informe_conclusion || (c.informe && c.informe.conclusion) || '';
+    cont.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="section-title" style="margin:0">INFORME SOFT</div>
+        <button onclick="abrirModalTranscripcion('${c.id}')" style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-mid);background:#fff;border-radius:14px;cursor:pointer;color:var(--navy)">✨ Desde transcripción</button>
+      </div>
+      ${editableBlock(c, 'informe_soft', soft)}
+      <div class="section-title">INFORME TÉCNICO</div>
+      ${editableBlock(c, 'informe_tecnico', tec)}
+      <div class="section-title">EN CONCLUSIÓN</div>
+      ${editableBlock(c, 'informe_conclusion', conc)}
+    `;
+  }
+
+  else if (tabActiva === 'pipeline') {
+    cont.innerHTML = `
+      <div class="fields-grid">
+        <div class="field-item"><label>Celular</label><div class="field-val">${c.celular||'—'}</div></div>
+        <div class="field-item"><label>Mail</label><div class="field-val" style="word-break:break-all">${c.mail||'—'}</div></div>
+        <div class="field-item full"><label>Carrera</label><div class="field-val">${c.carrera||'—'}</div></div>
+        <div class="field-item full"><label>Experiencia</label><div class="field-val">${c.experiencia||'—'}</div></div>
+        <div class="field-item"><label>Fuente</label><div class="field-val">${c.fuente||'—'}</div></div>
+        <div class="field-item"><label>Distancia</label><div class="field-val">${c.distancia||'—'}</div></div>
+        <div class="field-item full"><label>Resumen</label><div class="field-val">${c.resumen||'—'}</div></div>
+        <div class="field-item"><label>1° Entrevista</label><div class="field-val">${c.entrevista1||'—'}</div></div>
+        <div class="field-item"><label>2° Instancia</label><div class="field-val">${c.entrevista2||'—'}</div></div>
+      </div>
+      ${c.cv_link||c.cvLink ? `<div style="margin-top:16px"><a href="${c.cv_link||c.cvLink}" target="_blank" style="color:var(--azul);font-size:13px">📎 Ver CV en Drive</a></div>` : ''}
+    `;
+  }
+
+  else if (tabActiva === 'estado') {
+    const semOpts = [
+      { val: 'azul', label: '🔵 En proceso' }, { val: 'violeta', label: '🟣 Contratado' },
+      { val: 'amarillo', label: '🟡 Pipeline futuro' }, { val: 'rojo', label: '🔴 Descartado' },
+      { val: 'negro', label: '⚫ Se bajó' }, { val: 'verde', label: '🟢 Por contactar' }
+    ];
+    const areaOpts = ['Anuales', 'BPO', 'Auditoría', 'Contabilidad', 'A definir'];
+    cont.innerHTML = `
+      <div class="section-title">SEMÁFORO</div>
+      <div class="sem-selector" id="sem-sel">
+        ${semOpts.map(o => `<div class="sem-opt ${c.semaforo===o.val?'selected-'+o.val:''}" onclick="cambiarSemaforo('${c.id}','${o.val}')">${o.label}</div>`).join('')}
+      </div>
+      <div class="section-title" style="margin-top:20px">ÁREA</div>
+      <select onchange="cambiarArea('${c.id}',this.value)" style="width:100%;padding:9px 12px;border:1.5px solid var(--gray-mid);border-radius:8px;font-size:14px">
+        ${areaOpts.map(a => `<option ${(c.area||'').toLowerCase().includes(a.toLowerCase())?'selected':''}>${a}</option>`).join('')}
+      </select>
+      <div class="section-title" style="margin-top:20px">LINK CV</div>
+      <div style="display:flex;gap:8px">
+        <input id="cv-link-inp" value="${c.cv_link||c.cvLink||''}" placeholder="https://drive.google.com/..." style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-mid);border-radius:8px;font-size:13px;outline:none">
+        <button onclick="guardarCVLink('${c.id}')" style="padding:9px 14px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">Guardar</button>
+      </div>
+      <div class="section-title" style="margin-top:20px">NOTAS INTERNAS</div>
+      ${editableBlock(c, 'resumen', c.resumen||'')}
+    `;
+  }
+
+  else if (tabActiva === 'acuerdo') {
+    const ac = c.acuerdo || {};
+    cont.innerHTML = `
+      <div class="fields-grid">
+        <div class="field-item"><label>Remuneración pactada (bruto)</label><input id="ac-sueldo" value="${ac.sueldo||''}" placeholder="$1.400.000"></div>
+        <div class="field-item"><label>Fecha de ingreso</label><input type="date" id="ac-fecha" value="${ac.fecha||''}"></div>
+        <div class="field-item full"><label>Gerente / Socio que acompañó</label><input id="ac-gerente" value="${ac.gerente||''}" placeholder="Juan Gasco + Sebastián Mancuso"></div>
+        <div class="field-item full"><label>Área de ingreso</label><input id="ac-area" value="${ac.areaIngreso||c.area||''}"></div>
+        <div class="field-item full"><label>Observaciones</label><textarea id="ac-obs" rows="3" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;font-family:inherit;outline:none">${ac.obs||''}</textarea></div>
+      </div>
+      <button onclick="guardarAcuerdo('${c.id}')" style="margin-top:16px;padding:10px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">💾 Guardar acuerdo</button>
+    `;
+  }
+
+  else if (tabActiva === 'baja') {
+    const bj = c.motivo_baja || c.motivoBaja || {};
+    const opts = ['No pasó la técnica','Se bajó solo','Oferta salarial no aceptada','Aceptó otra oferta','Distancia / logística','No alineado al perfil','Sin respuesta'];
+    cont.innerHTML = `
+      <div class="section-title">TIPO DE BAJA</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        ${opts.map(o => `<label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid ${bj.tipo===o?'var(--navy)':'var(--gray-mid)'};border-radius:20px;cursor:pointer;font-size:13px;background:${bj.tipo===o?'var(--navy)':'#fff'};color:${bj.tipo===o?'#fff':'inherit'};transition:all .2s">
+          <input type="radio" name="bj-tipo" value="${o}" ${bj.tipo===o?'checked':''} style="display:none" onchange="this.closest('[style]').style.background='var(--navy)';this.closest('[style]').style.color='#fff';this.closest('[style]').style.borderColor='var(--navy)'">${o}</label>`).join('')}
+      </div>
+      <div class="section-title">DETALLE</div>
+      <textarea id="bj-detalle" rows="4" style="width:100%;padding:10px;border:1.5px solid var(--gray-mid);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none" placeholder="Describí brevemente...">${bj.detalle||''}</textarea>
+      <button onclick="guardarBaja('${c.id}')" style="margin-top:16px;padding:10px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">💾 Guardar</button>
+    `;
+  }
+}
+
+// Editable block
+function editableBlock(c, campo, texto) {
+  const escaped = texto.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `<div class="editable-block" id="blk-${c.id}-${campo}" ondblclick="startEdit('${c.id}','${campo}')">
+    <div class="blk-text">${escaped || '<span style="color:#aaa;font-style:italic">Doble clic para editar...</span>'}</div>
+  </div><div class="edit-hint">Doble clic para editar</div>`;
+}
+
+function startEdit(cId, campo) {
+  const el = document.getElementById(`blk-${cId}-${campo}`);
+  if (!el || el.classList.contains('editing')) return;
+  const c = CANDIDATOS.find(x => x.id === cId);
+  const current = c[campo] || (c.informe && c.informe[campo.replace('informe_','')]) || '';
+  el.classList.add('editing');
+  el.innerHTML = `<textarea style="width:100%;min-height:120px;border:none;background:transparent;font-size:13px;line-height:1.7;resize:vertical;outline:none;font-family:inherit">${current}</textarea>
+    <div style="text-align:right;margin-top:8px"><button class="save-btn" onclick="saveEdit('${cId}','${campo}')">💾 Guardar</button></div>`;
+  el.querySelector('textarea').focus();
+}
+
+async function saveEdit(cId, campo) {
+  const el = document.getElementById(`blk-${cId}-${campo}`);
+  const c = CANDIDATOS.find(x => x.id === cId);
+  const val = el.querySelector('textarea').value;
+  c[campo] = val;
+  c.has_report = true;
+  el.classList.remove('editing');
+  el.innerHTML = `<div class="blk-text">${val.replace(/</g,'&lt;').replace(/>/g,'&gt;') || '<span style="color:#aaa;font-style:italic">Doble clic para editar...</span>'}</div>`;
+  await guardarCandidato(c);
+  renderLista();
+}
+
+// State changes
+async function cambiarSemaforo(cId, sem) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  c.semaforo = sem;
+  const m = { azul:'En proceso', violeta:'Contratado', amarillo:'Pipeline futuro', rojo:'Descartado', negro:'Se bajó', verde:'Por contactar' };
+  c.estado = m[sem] || sem;
+  await guardarCandidato(c);
+  renderLista(); renderDetalle(); updateStats();
+}
+
+async function cambiarArea(cId, area) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  c.area = area;
+  await guardarCandidato(c);
+  renderLista();
+}
+
+async function guardarCVLink(cId) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  c.cv_link = document.getElementById('cv-link-inp').value.trim();
+  await guardarCandidato(c);
+}
+
+async function guardarAcuerdo(cId) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  c.acuerdo = {
+    sueldo: document.getElementById('ac-sueldo').value,
+    fecha: document.getElementById('ac-fecha').value,
+    gerente: document.getElementById('ac-gerente').value,
+    areaIngreso: document.getElementById('ac-area').value,
+    obs: document.getElementById('ac-obs').value
+  };
+  await guardarCandidato(c);
+}
+
+async function guardarBaja(cId) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  const tipo = document.querySelector('[name="bj-tipo"]:checked');
+  c.motivo_baja = { tipo: tipo ? tipo.value : '', detalle: document.getElementById('bj-detalle').value };
+  await guardarCandidato(c);
+}
+
+// ══ TRANSCRIPCIÓN → INFORME ══
+function abrirModalTranscripcion(cId) {
+  const id = cId || candidatoSeleccionado;
+  const c = CANDIDATOS.find(x => x.id === id);
+  if (!c) return;
+  _candidatoTranscripcion = c;
+  document.getElementById('trans-candidato-nombre').textContent = c.nombre + ' · ' + (c.area||'');
+  document.getElementById('trans-texto').value = '';
+  document.getElementById('trans-resultado').style.display = 'none';
+  document.getElementById('modal-transcripcion').classList.add('open');
+}
+
+async function generarInforme() {
+  const texto = document.getElementById('trans-texto').value.trim();
+  if (!texto || texto.length < 30) { alert('Pegá la transcripción primero.'); return; }
+  const c = _candidatoTranscripcion;
+  const btn = document.getElementById('btn-generar');
+  btn.disabled = true; btn.textContent = '⏳ Generando...';
+
+  const prompt = `Sos Zulma Cabrera, Responsable de RRHH en Grupo GNP, firma de profesionales tributarios (~43 empleados) en Recoleta, CABA.
+
+CONTEXTO GNP:
+- Estructura piramidal: juniors → seniors → gerentes → socios
+- Modalidad híbrida: 2 días home. Presencialidad absoluta en PEAK (abr-jun)
+- PEAK period: sin horas extras pagas, con bono anual
+- Time Report obligatorio
+- Revisión salarial trimestral
+- Plan de carrera claro
+- Asignación de 6 clientes de distintos rubros
+
+CANDIDATO: \${c.nombre}
+ÁREA: \${c.area||'A definir'} | EDAD: \${c.edad||'N/D'} años | CARRERA: \${c.carrera||''} | LOCALIDAD: \${c.localidad||''}
+
+TRANSCRIPCIÓN DE LA ENTREVISTA:
+\${texto}
+
+INSTRUCCIONES:
+- Escribí en primera persona como si fuera tu análisis directo, no una transcripción
+- NO uses "mencionó", "dijo que", "comentó" — escribí como tu observación
+- NO uses bullets ni listas
+- Reemplazá cualquier mención a "PIC" por "PEAK"
+- Estilo: narrativo, fluido, profesional pero directo
+
+Devolvé EXACTAMENTE dos secciones separadas por ===CONCLUSION===:
+
+SECCIÓN 1 — INFORME SOFT (4-6 párrafos):
+· Quién es: edad, dónde vive, con quién, historia personal relevante
+· Formación: carrera, universidad, materias clave cursadas/aprobadas, promedio si lo mencionó
+· Experiencia laboral: dónde trabajó, qué hacía, por qué se va
+· Recepción del modelo GNP: cómo reaccionó a la propuesta, preguntas que hizo
+· Disponibilidad y pretensión salarial
+· Cualquier dato que no figura en el CV pero surgió en la entrevista
+
+SECCIÓN 2 — EN CONCLUSIÓN (1 párrafo):
+Síntesis del perfil en una frase, la variable crítica a validar en la técnica, y la situación operativa (disponibilidad, restricciones, pretensión vs banda).
+
+Solo el texto, sin títulos ni encabezados.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-calls': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const txt = data.content?.[0]?.text || '';
+    const partes = txt.split('===CONCLUSION===');
+    _informeGenerado = { soft: (partes[0]||'').trim(), conclusion: (partes[1]||'').trim() };
+    document.getElementById('trans-soft').textContent = _informeGenerado.soft;
+    document.getElementById('trans-conclusion').textContent = _informeGenerado.conclusion;
+    document.getElementById('trans-resultado').style.display = 'block';
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = '✨ Generar';
+}
+
+async function aplicarInforme() {
+  if (!_informeGenerado || !_candidatoTranscripcion) return;
+  const c = _candidatoTranscripcion;
+  if (_informeGenerado.soft) c.informe_soft = _informeGenerado.soft;
+  if (_informeGenerado.conclusion) c.informe_conclusion = _informeGenerado.conclusion;
+  c.has_report = true;
+  await guardarCandidato(c);
+  document.getElementById('modal-transcripcion').classList.remove('open');
+  if (candidatoSeleccionado === c.id) renderDetalle();
+  renderLista();
+}
+
+// ══ PROCESADOR CV ══
+function abrirModalCV() {
+  document.getElementById('cv-step-1').style.display = '';
+  document.getElementById('cv-step-2').style.display = 'none';
+  document.getElementById('cv-texto').value = '';
+  document.getElementById('file-status').style.display = 'none';
+  _cvFileData = null;
+  document.getElementById('modal-cv').classList.add('open');
+}
+function cerrarModalCV() { document.getElementById('modal-cv').classList.remove('open'); }
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('cv-drop-area').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+}
+
+function handleFile(file) {
+  const status = document.getElementById('file-status');
+  status.style.display = 'block'; status.style.color = '#888';
+  status.textContent = '⏳ Leyendo ' + file.name + '...';
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'pdf') {
+    const r = new FileReader();
+    r.onload = e => {
+      const b64 = btoa(new Uint8Array(e.target.result).reduce((d,b) => d + String.fromCharCode(b), ''));
+      _cvFileData = { type: 'pdf', base64: b64 };
+      status.style.color = 'var(--verde)'; status.textContent = '✅ PDF listo — hacé clic en Procesar';
+    };
+    r.readAsArrayBuffer(file);
+  } else if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
+    const r = new FileReader();
+    r.onload = e => {
+      _cvFileData = { type: 'image', base64: e.target.result.split(',')[1], mediaType: ext==='png'?'image/png':'image/jpeg' };
+      status.style.color = 'var(--verde)'; status.textContent = '✅ Imagen lista — hacé clic en Procesar';
+    };
+    r.readAsDataURL(file);
+  } else if (ext === 'docx') {
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const matches = e.target.result.match(/<w:t[\s\S]*?>([\s\S]*?)<\/w:t>/g);
+        const txt = matches ? matches.map(m => m.replace(/<[^>]+>/g,'')).join(' ') : '';
+        document.getElementById('cv-texto').value = txt.substring(0, 5000);
+      } catch(ex) {}
+      status.style.color = 'var(--verde)'; status.textContent = '✅ Word procesado';
+    };
+    r.readAsText(file, 'UTF-8');
+  }
+}
+
+async function procesarCV() {
+  const fuente = document.getElementById('cv-fuente').value;
+  const texto = document.getElementById('cv-texto').value.trim();
+  const btn = document.getElementById('btn-procesar');
+  btn.disabled = true; btn.textContent = '⏳ Procesando...';
+
+  const prompt = `Sos mi asistente de RRHH para el proceso de selección de Grupo GNP, firma de profesionales tributarios (~43 empleados) en Recoleta, CABA. Soy Zulma Cabrera, Responsable de RRHH.
+
+FIRMA: Grupo GNP especializada en materia tributaria.
+Socios: Guillermo Néstor Pérez (CEO), Sebastián Mancuso, Juan Elías Pérez Bay.
+Gerentes: Gastón Fernández Celi, Leandro Ameri, Juan Gasco González, Jorge Savoia, Ezequiel Barbalaco (Auditoría), Ignacio Fernández (BPO/Mensuales).
+
+PERFIL BUSCADO: Junior CP. Área se define en entrevista:
+ANUALES: técnico-impositivo. MUY estricto: edad 18-26, relación carrera-edad correcta.
+BPO/MENSUALES: operativo. Menos estricto en edad si hay experiencia contable real.
+AUDITORÍA: analítico, Big Four o papeles de trabajo suma.
+CONTABILIDAD: generalista contable.
+
+SEMÁFORO:
+verde = CP en curso/graduado, edad 18-26, relación carrera-edad OK, CABA/GBA
+amarillo = apto con reservas (edad 27-28 con exp. contable, o relación carrera-edad regular)
+rojo = no es CP, edad mayor a 28, part-time, o claramente no apto
+gris = sin datos suficientes para clasificar
+
+RELACIÓN CARRERA-EDAD (CP empieza ~18 años):
+20 años a mitad carrera = correcto (verde)
+22 años avanzado = correcto (verde)
+24 años recién a mitad = regular (amarillo)
+27-28 con exp. contable = amarillo solo para BPO/Auditoria/Contabilidad, NO Anuales
+Más de 28 = rojo para todas las áreas
+
+DESCARTE RÁPIDO:
+Carrera no es CP ni contable = rojo inmediato
+Edad mayor a 28 = rojo inmediato
+Busca part-time = rojo inmediato
+
+CV A PROCESAR:
+\${texto}
+
+Devolvé SOLO este JSON (sin texto adicional, sin markdown):
+{"nombre":"","edad":null,"localidad":"","celular":"","mail":"","carrera":"","experiencia":"","area":"","semaforo":"amarillo","evaluacion":"","distancia":"Consultar"}
+
+Para semaforo usá: "verde", "amarillo", "rojo" o "gris".
+Para area usá: "Anuales", "BPO", "Auditoría", "Contabilidad" o "A definir".
+Para evaluacion: 1-2 líneas síntesis con área sugerida y observación clave.`;
+
+  let messages_content = [];
+  if (_cvFileData?.type === 'pdf') {
+    messages_content = [{ type:'document', source:{type:'base64', media_type:'application/pdf', data:_cvFileData.base64}}, { type:'text', text: prompt + '\nEste es el CV adjunto. Extraé los datos y devolvé SOLO el JSON.' }];
+  } else if (_cvFileData?.type === 'image') {
+    messages_content = [{ type:'image', source:{type:'base64', media_type:_cvFileData.mediaType, data:_cvFileData.base64}}, { type:'text', text: prompt + '\nEsta es una imagen del CV. Extraé los datos y devolvé SOLO el JSON.' }];
+  } else {
+    if (!texto || texto.length < 20) { alert('Subí un archivo o pegá el texto.'); btn.disabled=false; btn.textContent='✨ Procesar'; return; }
+    messages_content = [{ type:'text', text: prompt + '\n\nCV A PROCESAR:\n' + texto }];
+  }
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type':'application/json', 'x-api-key': CLAUDE_KEY, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-calls':'true' },
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:800, messages:[{role:'user', content:messages_content}] })
+    });
+    const data = await res.json();
+    const parsed = JSON.parse(data.content?.[0]?.text?.replace(/```json|```/g,'').trim() || '{}');
+    document.getElementById('cr-nombre').value = parsed.nombre||'';
+    document.getElementById('cr-edad').value = parsed.edad||'';
+    document.getElementById('cr-localidad').value = parsed.localidad||'';
+    document.getElementById('cr-celular').value = parsed.celular||'';
+    document.getElementById('cr-mail').value = parsed.mail||'';
+    document.getElementById('cr-carrera').value = parsed.carrera||'';
+    document.getElementById('cr-experiencia').value = parsed.experiencia||'';
+    document.getElementById('cr-eval').value = parsed.evaluacion||'';
+    const semEl = document.getElementById('cr-semaforo');
+    for (let j=0; j<semEl.options.length; j++) if (semEl.options[j].value===parsed.semaforo) { semEl.selectedIndex=j; break; }
+    document.getElementById('cv-step-1').style.display = 'none';
+    document.getElementById('cv-step-2').style.display = '';
+  } catch(e) { alert('Error: ' + e.message); }
+  btn.disabled=false; btn.textContent='✨ Procesar';
+}
+
+async function agregarCV() {
+  const nombre = document.getElementById('cr-nombre').value.trim();
+  if (!nombre) { alert('El nombre es obligatorio.'); return; }
+  const makeId = n => 'cv-' + n.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').substring(0,25) + '-' + Date.now().toString(36);
+  const nuevo = {
+    id: makeId(nombre), nombre, edad: parseInt(document.getElementById('cr-edad').value)||null,
+    localidad: document.getElementById('cr-localidad').value,
+    celular: document.getElementById('cr-celular').value,
+    mail: document.getElementById('cr-mail').value,
+    carrera: document.getElementById('cr-carrera').value,
+    experiencia: document.getElementById('cr-experiencia').value,
+    fuente: document.getElementById('cv-fuente').value,
+    area: document.getElementById('cr-area').value,
+    semaforo: document.getElementById('cr-semaforo').value,
+    estado: 'Pipeline futuro', evaluacion: document.getElementById('cr-eval').value,
+    resumen: document.getElementById('cr-eval').value.substring(0,200),
+    entrevista1:'—', entrevista2:'—', has_report:false, proximo:false, distancia:'Consultar'
+  };
+  const { error } = await sb.from('candidatos').insert(candidatoToRow(nuevo));
+  if (error) { alert('Error al agregar: ' + error.message); return; }
+  CANDIDATOS.unshift(nuevo);
+  cerrarModalCV(); renderLista(); updateStats();
+  showToast('✅ ' + nombre + ' agregado al pipeline');
+}
+
+// ══ ESTADÍSTICAS ══
+async function mostrarEstadisticas() {
+  const panel = document.getElementById('right-panel');
+  panel.innerHTML = '<div style="padding:24px"><div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:16px">📊 Estadísticas del proceso</div><div style="color:#888;font-size:13px">Cargando datos...</div></div>';
+  panel.classList.add('mobile-open');
+
+  // Load from Supabase
+  const [{ data: campanas }, { data: reqs_db }] = await Promise.all([
+    sb.from('campanas').select('*'),
+    sb.from('requerimientos').select('*')
+  ]);
+
+  const v = CANDIDATOS;
+  const contratados = v.filter(c => c.semaforo === 'violeta').length;
+  const enProceso = v.filter(c => c.semaforo === 'azul').length;
+  const seBajaron = v.filter(c => c.semaforo === 'negro').length;
+  const descartados = v.filter(c => c.semaforo === 'rojo').length;
+  const pipeline = v.filter(c => c.semaforo === 'amarillo' || c.semaforo === 'verde').length;
+  const conInforme = v.filter(c => c.has_report).length;
+  
+  const campData = campanas && campanas.length > 0 ? campanas : [{"fuente": "LinkedIn", "detalle": "Anuncio 16/03/2025", "cvs": 95, "costo": 333978}, {"fuente": "LinkedIn", "detalle": "Anuncio 06/04/2026", "cvs": 66, "costo": 322279}, {"fuente": "LinkedIn — Headhunting manual", "detalle": "Búsqueda activa / Sales Navigator", "cvs": 0, "costo": 0}, {"fuente": "Evento", "detalle": "EconTech UBA — 16/04/2026", "cvs": 87, "costo": 1000000}, {"fuente": "Evento", "detalle": "Próximo evento — completar", "cvs": 0, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "UADE", "cvs": 1, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "USAL", "cvs": 0, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "UBA", "cvs": 0, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "UCA", "cvs": 0, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "UIA", "cvs": 0, "costo": 0}, {"fuente": "Cátedra / Docencia", "detalle": "Planificación Estratégica", "cvs": 1, "costo": 0}, {"fuente": "Referido interno", "detalle": "—", "cvs": 1, "costo": 0}, {"fuente": "CV espontáneo", "detalle": "—", "cvs": 22, "costo": 0}, {"fuente": "CV espontáneo", "detalle": "CV recibido 2025 — Nievas", "cvs": 1, "costo": 0}];
+  const reqsData = reqs_db && reqs_db.length > 0 ? reqs_db : [{"id": "RQ-001", "area": "Anuales", "motivo": "Renuncia", "apertura": "2026-03-01", "cobertura": "2026-04-30", "candidato": "Carabajal Emiliano", "fuente": "LinkedIn", "estado": "Cubierto"}, {"id": "RQ-002", "area": "Anuales", "motivo": "Renuncia", "apertura": "2026-03-01", "cobertura": "2026-04-30", "candidato": "Seghpoian Denise", "fuente": "LinkedIn", "estado": "Cubierto"}, {"id": "RQ-003", "area": "Mensuales", "motivo": "Crecimiento del equipo", "apertura": "2026-03-01", "cobertura": "2026-04-30", "candidato": "Nievas María Sol", "fuente": "CV espontáneo", "estado": "Cubierto"}, {"id": "RQ-004", "area": "Contabilidad", "motivo": "Renuncia", "apertura": "2025-11-01", "cobertura": "2026-01-15", "candidato": "Lizarribar Martina", "fuente": "LinkedIn — Headhunting manual", "estado": "Cubierto"}, {"id": "RQ-005", "area": "Anuales", "motivo": "Crecimiento del equipo", "apertura": "2025-01-01", "cobertura": "2025-02-01", "candidato": "Ríos Ignacio", "fuente": "Cátedra / Docencia", "estado": "Cubierto"}, {"id": "RQ-006", "area": "Anuales", "motivo": "Renuncia", "apertura": "2026-05-22", "cobertura": "", "candidato": "", "fuente": "", "estado": "Abierto"}, {"id": "RQ-007", "area": "Anuales", "motivo": "Crecimiento del equipo", "apertura": "2026-06-01", "cobertura": "", "candidato": "", "fuente": "", "estado": "Abierto"}, {"id": "RQ-008", "area": "Anuales", "motivo": "Crecimiento del equipo", "apertura": "2026-06-02", "cobertura": "", "candidato": "", "fuente": "", "estado": "Abierto"}, {"id": "RQ-009", "area": "Contabilidad", "motivo": "Crecimiento del equipo", "apertura": "2026-05-26", "cobertura": "", "candidato": "", "fuente": "", "estado": "Abierto"}];
+  const roiData = [{"nombre": "Ríos Ignacio", "fuente": "Cátedra / Docencia", "area": "Anuales", "fecha": "Feb 2025", "m3": "✓", "m6": "✓", "m12": "✓"}, {"nombre": "Lizarribar Martina", "fuente": "LinkedIn — Headhunting", "area": "Contabilidad", "fecha": "Ene 2026", "m3": "✓", "m6": "—", "m12": "—"}, {"nombre": "Seghpoian Denise", "fuente": "LinkedIn Anuncio 16/03", "area": "Anuales", "fecha": "Abr 2026", "m3": "—", "m6": "—", "m12": "—"}, {"nombre": "Nievas María Sol", "fuente": "CV espontáneo", "area": "Mensuales", "fecha": "Abr 2026", "m3": "—", "m6": "—", "m12": "—"}, {"nombre": "Carabajal Emiliano", "fuente": "LinkedIn Anuncio 16/03", "area": "Anuales", "fecha": "Abr 2026", "m3": "—", "m6": "—", "m12": "—"}];
+  const metasData = [{"indicador": "Días promedio de cobertura (todas las áreas)", "meta": "80", "real2025": "—"}, {"indicador": "Días promedio — Anuales", "meta": "80", "real2025": "—"}, {"indicador": "Días promedio — Mensuales", "meta": "1", "real2025": "—"}, {"indicador": "Días promedio — Auditoría", "meta": "2", "real2025": "—"}, {"indicador": "Días promedio — Contabilidad", "meta": "2", "real2025": "—"}, {"indicador": "Tasa de entrevistados / CVs recibidos", "meta": "0.02", "real2025": "—"}, {"indicador": "Tasa de contratados / entrevistados", "meta": "0.02", "real2025": "—"}, {"indicador": "Tasa de contratados / CVs totales", "meta": "0.02", "real2025": "—"}, {"indicador": "% candidatos que se bajan ⚫ / entrevistados", "meta": "0.02", "real2025": "—"}, {"indicador": "Búsquedas cubiertas en el año", "meta": "10", "real2025": "—"}, {"indicador": "Inversión total en reclutamiento ($)", "meta": "1000000", "real2025": "—"}, {"indicador": "Costo máximo por contratado ($)", "meta": "300000", "real2025": "—"}, {"indicador": "% ingresados que siguen a los 3 meses", "meta": "0.8", "real2025": "—"}, {"indicador": "% ingresados que siguen a los 6 meses", "meta": "0.7", "real2025": "—"}, {"indicador": "% ingresados que siguen a los 12 meses", "meta": "0.6", "real2025": "—"}];
+
+  const totalCosto = campData.reduce((a,c) => a+(c.costo||c.costo_total||0), 0);
+  const totalCVs = campData.reduce((a,c) => a+(c.cvs_recibidos||c.cvs||0), 0);
+  const costoxContratado = contratados > 0 ? Math.round(totalCosto/contratados) : 0;
+  
+  const reqsAbiertos = reqsData.filter(r => r.estado === 'Abierto').length;
+  const reqsCubiertos = reqsData.filter(r => r.estado === 'Cubierto' || r.cobertura);
+  const diasProm = reqsCubiertos.length > 0 ? Math.round(reqsCubiertos.reduce((a,r) => {
+    const apt = r.fecha_apertura || r.apertura;
+    const cob = r.fecha_cobertura || r.cobertura;
+    if (!apt || !cob || cob.startsWith('=')) return a;
+    return a + (new Date(cob) - new Date(apt)) / (1000*60*60*24);
+  }, 0) / reqsCubiertos.length) : 0;
+
+  const totalEntrevistados = v.filter(c => c.has_report || ['azul','violeta','rojo','negro'].includes(c.semaforo)).length;
+  const tasaConversion = totalEntrevistados > 0 ? (contratados/totalEntrevistados*100).toFixed(1)+'%' : '—';
+  const pctBaja = totalEntrevistados > 0 ? (seBajaron/totalEntrevistados*100).toFixed(0)+'%' : '—';
+
+  function kpi(label, val, color, sub) {
+    return '<div style="background:#fff;border:1px solid var(--gray-mid);border-radius:10px;padding:14px;text-align:center"><div style="font-size:22px;font-weight:700;color:'+(color||'var(--navy)')+'">'+val+'</div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-top:4px">'+label+'</div>'+(sub?'<div style="font-size:10px;color:#aaa;margin-top:2px">'+sub+'</div>':'')+'</div>';
+  }
+
+  function bar(nombre, count, total, col) {
+    const pct = total > 0 ? Math.round(count/total*100) : 0;
+    return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>'+nombre+'</span><span style="font-weight:600;color:'+(col||'#888')+'">'+count+' <span style="color:#ccc">('+pct+'%)</span></span></div><div style="background:var(--gray-mid);border-radius:4px;height:6px"><div style="background:'+(col||'var(--navy)')+';height:100%;width:'+pct+'%;border-radius:4px"></div></div></div>';
+  }
+
+  // Fuentes from pipeline
+  const canalMap = {};
+  v.forEach(c => {
+    const fl = (c.fuente||'').toLowerCase();
+    const k = fl.includes('headhunt')?'LinkedIn Headhunting':fl.includes('linkedin')?'LinkedIn Anuncio':fl.includes('econtech')||fl.includes('evento')?'EconTech / Evento':fl.includes('bolsa')?'Bolsa Universitaria':fl.includes('espontáneo')||fl.includes('espontaneo')?'CV Espontáneo':fl.includes('cátedra')||fl.includes('docencia')?'Cátedra / Docencia':'Otros';
+    if (!canalMap[k]) canalMap[k] = {total:0, aptos:0, contrat:0};
+    canalMap[k].total++;
+    if (['azul','violeta','amarillo','verde'].includes(c.semaforo)) canalMap[k].aptos++;
+    if (c.semaforo==='violeta') canalMap[k].contrat++;
+  });
+
+  // Motivos de baja
+  const bajaTipos = {};
+  v.forEach(c => {
+    if (c.semaforo==='negro') bajaTipos['Se bajó solo']=(bajaTipos['Se bajó solo']||0)+1;
+    else if (c.semaforo==='rojo') { const t=(c.motivo_baja&&c.motivo_baja.tipo)||'No pasó la técnica'; bajaTipos[t]=(bajaTipos[t]||0)+1; }
+  });
+  const colBajas = {'No pasó la técnica':'var(--rojo)','Se bajó solo':'var(--violeta)','Oferta salarial no aceptada':'var(--amarillo)','Aceptó otra oferta':'#e67e22','Distancia / logística':'#888','No alineado al perfil':'#444','Sin respuesta':'#aaa'};
+
+  let h = '<div style="padding:24px;overflow-y:auto">';
+  h += '<div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:16px">📊 Estadísticas del proceso</div>';
+  
+  // KPIs
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">';
+  h += kpi('Total CVs', 459, 'var(--navy)', 'según Excel madre');
+  h += kpi('Contratados', contratados, 'var(--verde)');
+  h += kpi('En proceso', enProceso, 'var(--azul)');
+  h += kpi('Tasa conversión', tasaConversion, 'var(--violeta)', 'contrat./entrevistados');
+  h += kpi('Se bajaron', pctBaja, '#888', seBajaron+' candidatos');
+  h += kpi('Búsquedas abiertas', reqsAbiertos, 'var(--rojo)');
+  h += '</div>';
+
+  // Inversión
+  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-weight:600;color:var(--navy)">💰 Inversión en reclutamiento</span><button onclick="cfgTab(\'campanas\');document.getElementById(\'modal-config\').classList.add(\'open\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-mid);background:#fff;border-radius:14px;cursor:pointer">+ Agregar campaña</button></div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">';
+  h += kpi('Inversión total', '$'+totalCosto.toLocaleString('es-AR'), 'var(--rojo)');
+  h += kpi('Costo x contratado', costoxContratado>0?'$'+costoxContratado.toLocaleString('es-AR'):'—', 'var(--amarillo)');
+  h += kpi('Total CVs recibidos', totalCVs, '#888', 'de campañas pagas');
+  h += '</div>';
+  campData.filter(c => (c.costo||c.costo_total||0) > 0 || (c.cvs_recibidos||c.cvs||0) > 0).forEach(c => {
+    const cvs = c.cvs_recibidos||c.cvs||0;
+    const costo = c.costo||c.costo_total||0;
+    const det = c.detalle||'';
+    h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--gray-light)"><span><strong>'+c.nombre+'</strong>'+(det?' — <span style=\'color:#888\'>'+det+'</span>':'')+'</span><span>'+cvs+' CVs · $'+costo.toLocaleString('es-AR')+(cvs>0&&costo>0?' · $'+Math.round(costo/cvs).toLocaleString('es-AR')+'/CV':costo===0?' · Gratuito':'')+'</span></div>';
+  });
+  h += '</div>';
+
+  // Requerimientos
+  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-weight:600;color:var(--navy)">📋 Requerimientos · Días prom: '+diasProm+'d</span><button onclick="cfgTab(\'reqs\');document.getElementById(\'modal-config\').classList.add(\'open\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-mid);background:#fff;border-radius:14px;cursor:pointer">+ Nueva búsqueda</button></div>';
+  reqsData.forEach(r => {
+    const col = (r.estado||r.estado)==='Cubierto'?'var(--verde)':'var(--rojo)';
+    const apt = (r.fecha_apertura||r.apertura||'').substring(0,10);
+    const cob = (r.fecha_cobertura||r.cobertura||'');
+    const cobStr = cob && !cob.startsWith('=') ? cob.substring(0,10) : '—';
+    h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--gray-light)"><span><strong>'+(r.id||r.id)+'</strong> — '+(r.area||'')+' ('+(r.motivo||'')+')</span><span style="color:'+col+';font-weight:600">'+(r.estado||'Abierto')+(cobStr!=='—'?' · '+cobStr:'')+'</span></div>';
+  });
+  h += '</div>';
+
+  // Fuentes
+  const sortedCanales = Object.keys(canalMap).sort((a,b)=>canalMap[b].total-canalMap[a].total);
+  const colores = ['var(--navy)','var(--azul)','var(--violeta)','var(--amarillo)','var(--rojo)','var(--verde)','#e67e22'];
+  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
+  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">📡 Volumen y viabilidad por fuente</div>';
+  sortedCanales.forEach((c,i) => {
+    const d = canalMap[c];
+    h += bar(c+' · '+d.aptos+' aptos · '+d.contrat+' contratados', d.total, v.length, colores[i%colores.length]);
+  });
+  h += '</div>';
+
+  // Motivos
+  const sortedBajas = Object.keys(bajaTipos).sort((a,b)=>bajaTipos[b]-bajaTipos[a]);
+  const totalBajas = seBajaron+descartados;
+  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
+  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">📉 Motivos de descarte ('+totalBajas+')</div>';
+  if (sortedBajas.length > 0) {
+    sortedBajas.forEach(t => h += bar(t, bajaTipos[t], totalBajas, colBajas[t]||'#888'));
+  } else {
+    h += '<div style="font-size:12px;color:#aaa;font-style:italic">Completá los motivos en cada candidato descartado.</div>';
+  }
+  h += '</div>';
+
+  // ROI
+  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
+  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">🔄 ROI — Retención de ingresados</div>';
+  h += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
+  h += '<tr style="background:var(--gray-light)"><th style="text-align:left;padding:5px 8px">Nombre</th><th>Fuente</th><th>Área</th><th>Ingreso</th><th>3m</th><th>6m</th><th>12m</th></tr>';
+  roiData.forEach(r => {
+    h += '<tr style="border-bottom:1px solid var(--gray-light)"><td style="padding:5px 8px;font-weight:500">'+r.nombre+'</td><td style="padding:5px 8px;color:#888;font-size:11px">'+r.fuente+'</td><td style="padding:5px 8px">'+r.area+'</td><td style="padding:5px 8px">'+r.fecha+'</td>';
+    ['m3','m6','m12'].forEach(m => { h += '<td style="text-align:center;padding:5px 8px;color:'+(r[m]==='✓'?'var(--verde)':'#888')+'">'+r[m]+'</td>'; });
+    h += '</tr>';
+  });
+  h += '</table></div>';
+
+  // Metas
+  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
+  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">🎯 Metas e indicadores</div>';
+  h += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
+  h += '<tr style="background:var(--gray-light)"><th style="text-align:left;padding:5px 8px">Indicador</th><th>Meta 2026</th><th>Real 2025</th></tr>';
+  metasData.forEach(m => {
+    h += '<tr style="border-bottom:1px solid var(--gray-light)"><td style="padding:5px 8px">'+m.indicador+'</td><td style="padding:5px 8px;font-weight:600">'+m.meta+'</td><td style="padding:5px 8px;color:#888">'+m.real2025+'</td></tr>';
+  });
+  h += '</table></div>';
+
+  h += '</div>';
+  panel.innerHTML = h;
+}
+function kpi(label, val, color) {
+  return `<div style="background:#fff;border:1px solid var(--gray-mid);border-radius:10px;padding:14px;text-align:center">
+    <div style="font-size:24px;font-weight:700;color:${color||'var(--navy)'}">${val}</div>
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-top:4px">${label}</div>
+  </div>`;
+}
+
+function fuentesBars() {
+  const m = {};
+  CANDIDATOS.forEach(c => {
+    const fl = (c.fuente||'').toLowerCase();
+    const k = fl.includes('headhunt') ? 'LinkedIn Headhunting' : fl.includes('linkedin') ? 'LinkedIn Anuncio' : fl.includes('econtech')||fl.includes('evento') ? 'EconTech / Evento' : fl.includes('bolsa') ? 'Bolsa Universitaria' : fl.includes('espontáneo')||fl.includes('espontaneo') ? 'CV Espontáneo' : fl.includes('cátedra')||fl.includes('docencia') ? 'Cátedra' : 'Otros';
+    m[k] = (m[k]||0)+1;
+  });
+  const total = CANDIDATOS.length;
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${k}</span><span style="font-weight:600">${v} <span style="color:#aaa">(${Math.round(v/total*100)}%)</span></span></div>
+      <div style="background:var(--gray-mid);border-radius:4px;height:6px"><div style="background:var(--navy);height:100%;width:${Math.round(v/total*100)}%;border-radius:4px"></div></div>
+    </div>`).join('');
+}
+
+function motivosBars() {
+  const m = {};
+  CANDIDATOS.forEach(c => {
+    if (c.semaforo==='negro') m['Se bajó solo']=(m['Se bajó solo']||0)+1;
+    else if (c.semaforo==='rojo') { const t=(c.motivo_baja&&c.motivo_baja.tipo)||'No pasó la técnica'; m[t]=(m[t]||0)+1; }
+  });
+  const total = Object.values(m).reduce((a,b)=>a+b,0)||1;
+  const cols = {'No pasó la técnica':'var(--rojo)','Se bajó solo':'var(--violeta)','Oferta salarial no aceptada':'var(--amarillo)','Aceptó otra oferta':'#e67e22','Distancia / logística':'#888'};
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${k}</span><span style="font-weight:600;color:${cols[k]||'#888'}">${v}</span></div>
+      <div style="background:var(--gray-mid);border-radius:4px;height:6px"><div style="background:${cols[k]||'#888'};height:100%;width:${Math.round(v/total*100)}%;border-radius:4px"></div></div>
+    </div>`).join('') || '<div style="font-size:12px;color:#aaa;font-style:italic">Completá los motivos en cada candidato descartado</div>';
+}
+</script>

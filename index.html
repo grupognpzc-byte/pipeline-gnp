@@ -358,11 +358,13 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 // ══ FUNCIÓN PROXY — llama a Netlify que llama a Anthropic ══
 async function callClaude(messages, maxTokens) {
-  const res = await fetch('https://gtgnzfjvufqkrrbscccd.supabase.co/functions/v1/claude-proxy', {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0Z256Zmp2dWZxa3JyYnNjY2NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjY4NzMsImV4cCI6MjA5NzkwMjg3M30.LJ1F8lu4h55m5cVfPM0oXzoKAOA32E9u98gPLajQaBs'
+      'x-api-key': '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',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-calls': 'true'
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',

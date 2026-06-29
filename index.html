@@ -237,6 +237,7 @@
     <button class="filter-btn s-azul" onclick="setFilter('azul',this)">🔵 En proceso</button>
     <button class="filter-btn s-violeta" onclick="setFilter('violeta',this)">🟣 Contratados</button>
     <button class="filter-btn s-rojo" onclick="setFilter('rojo',this)">🔴 Descartados</button>
+    <button class="filter-btn" onclick="setFilter('bajaron',this)">⚫ Se bajaron</button>
     <button class="filter-btn s-amarillo" onclick="setFilter('amarillo',this)">🟡 Pipeline futuro</button>
     <button class="filter-btn" onclick="setFilter('informe',this)">★ Con informe</button>
     <button class="filter-btn" onclick="setFilter('anuales',this)">📁 Anuales</button>
@@ -482,6 +483,7 @@ function getLista() {
     if (filtroActivo === 'azul' && c.semaforo !== 'azul') return false;
     if (filtroActivo === 'violeta' && c.semaforo !== 'violeta') return false;
     if (filtroActivo === 'rojo' && c.semaforo !== 'rojo' && c.semaforo !== 'negro') return false;
+    if (filtroActivo === 'bajaron' && c.semaforo !== 'negro') return false;
     if (filtroActivo === 'amarillo' && c.semaforo !== 'amarillo' && c.semaforo !== 'verde') return false;
     if (filtroActivo === 'informe' && !c.has_report && !c.hasReport) return false;
     if (filtroActivo === 'anuales' && !(c.area||'').toLowerCase().includes('anual')) return false;
@@ -506,6 +508,7 @@ function renderLista() {
           ${c.area ? `<span class="badge badge-area">${c.area}</span>` : ''}
           <span class="badge badge-estado">${c.estado || ''}</span>
           ${(c.has_report || c.hasReport) ? '<span class="badge badge-informe">Informe</span>' : ''}
+          ${(c.semaforo==='rojo'||c.semaforo==='negro') && c.motivo_baja && c.motivo_baja.tipo ? '<span class="badge" style="background:#fee2e2;color:#b8332a;font-size:9px">'+c.motivo_baja.tipo+'</span>' : ''}
         </div>
       </div>
     </div>
@@ -595,19 +598,23 @@ function renderTab() {
   }
 
   else if (tabActiva === 'pipeline') {
+    const fuenteOpts = ['LinkedIn — Headhunting manual','LinkedIn Anuncio','Evento — EconTech UBA','Bolsa Universitaria — UADE','Bolsa Universitaria — UBA','CV espontáneo','Cátedra / Docencia','Referido interno'];
     cont.innerHTML = `
       <div class="fields-grid">
-        <div class="field-item"><label>Celular</label><div class="field-val">${c.celular||'—'}</div></div>
-        <div class="field-item"><label>Mail</label><div class="field-val" style="word-break:break-all">${c.mail||'—'}</div></div>
-        <div class="field-item full"><label>Carrera</label><div class="field-val">${c.carrera||'—'}</div></div>
-        <div class="field-item full"><label>Experiencia</label><div class="field-val">${c.experiencia||'—'}</div></div>
-        <div class="field-item"><label>Fuente</label><div class="field-val">${c.fuente||'—'}</div></div>
-        <div class="field-item"><label>Distancia</label><div class="field-val">${c.distancia||'—'}</div></div>
-        <div class="field-item full"><label>Resumen</label><div class="field-val">${c.resumen||'—'}</div></div>
-        <div class="field-item"><label>1° Entrevista</label><div class="field-val">${c.entrevista1||'—'}</div></div>
-        <div class="field-item"><label>2° Instancia</label><div class="field-val">${c.entrevista2||'—'}</div></div>
+        <div class="field-item"><label>Nombre</label><input id="ed-nombre" value="${c.nombre||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        <div class="field-item"><label>Edad</label><input id="ed-edad" type="number" value="${c.edad||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        <div class="field-item"><label>Celular</label><input id="ed-celular" value="${c.celular||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        <div class="field-item"><label>Mail</label><input id="ed-mail" value="${c.mail||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        <div class="field-item"><label>Localidad</label><input id="ed-localidad" value="${c.localidad||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        <div class="field-item"><label>Distancia</label><input id="ed-distancia" value="${c.distancia||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        <div class="field-item full"><label>Carrera</label><input id="ed-carrera" value="${c.carrera||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        <div class="field-item full"><label>Experiencia</label><textarea id="ed-experiencia" rows="3" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;font-family:inherit;resize:none;outline:none">${c.experiencia||''}</textarea></div>
+        <div class="field-item full"><label>Fuente</label><select id="ed-fuente" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none">${fuenteOpts.map(f => `<option ${c.fuente===f?'selected':''}>${f}</option>`).join('')}</select></div>
+        <div class="field-item"><label>1° Entrevista</label><input id="ed-ent1" value="${c.entrevista1||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        <div class="field-item"><label>2° Instancia</label><input id="ed-ent2" value="${c.entrevista2||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
       </div>
-      ${c.cv_link||c.cvLink ? `<div style="margin-top:16px"><a href="${c.cv_link||c.cvLink}" target="_blank" style="color:var(--azul);font-size:13px">📎 Ver CV en Drive</a></div>` : ''}
+      <button onclick="guardarDatos('${c.id}')" style="margin-top:16px;padding:10px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">💾 Guardar datos</button>
+      ${c.cv_link||c.cvLink ? `<div style="margin-top:12px"><a href="${c.cv_link||c.cvLink}" target="_blank" style="color:var(--azul);font-size:13px">📎 Ver CV en Drive</a></div>` : ''}
     `;
   }
 
@@ -695,6 +702,24 @@ async function saveEdit(cId, campo) {
   el.innerHTML = `<div class="blk-text">${val.replace(/</g,'&lt;').replace(/>/g,'&gt;') || '<span style="color:#aaa;font-style:italic">Doble clic para editar...</span>'}</div>`;
   await guardarCandidato(c);
   renderLista();
+}
+
+async function guardarDatos(cId) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  c.nombre = document.getElementById('ed-nombre').value.trim() || c.nombre;
+  c.edad = parseInt(document.getElementById('ed-edad').value) || null;
+  c.celular = document.getElementById('ed-celular').value.trim();
+  c.mail = document.getElementById('ed-mail').value.trim();
+  c.localidad = document.getElementById('ed-localidad').value.trim();
+  c.distancia = document.getElementById('ed-distancia').value.trim();
+  c.carrera = document.getElementById('ed-carrera').value.trim();
+  c.experiencia = document.getElementById('ed-experiencia').value.trim();
+  c.fuente = document.getElementById('ed-fuente').value;
+  c.entrevista1 = document.getElementById('ed-ent1').value.trim();
+  c.entrevista2 = document.getElementById('ed-ent2').value.trim();
+  await guardarCandidato(c);
+  renderLista();
+  renderDetalle();
 }
 
 async function cambiarSemaforo(cId, sem) {
@@ -953,6 +978,8 @@ Para evaluacion: 1-2 líneas síntesis con área sugerida y observación clave.`
 async function agregarCV() {
   const nombre = document.getElementById('cr-nombre').value.trim();
   if (!nombre) { alert('El nombre es obligatorio.'); return; }
+  const dup = CANDIDATOS.find(x => x.nombre.toLowerCase().trim() === nombre.toLowerCase().trim());
+  if (dup) { if (!confirm('Ya existe un candidato con el nombre "' + nombre + '". ¿Querés agregarlo igual?')) return; }
   const makeId = n => 'cv-' + n.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').substring(0,25) + '-' + Date.now().toString(36);
   const nuevo = {
     id: makeId(nombre), nombre, edad: parseInt(document.getElementById('cr-edad').value)||null,

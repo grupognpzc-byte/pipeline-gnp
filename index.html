@@ -1686,7 +1686,8 @@ async function mostrarEstadisticas() {
       h += '<td style="padding:6px 8px;color:#888;font-size:11px">'+r.fuente+'</td>';
       h += '<td style="padding:6px 8px">'+r.fecha+'</td>';
       ['m3','m6','m12'].forEach(m => {
-        h += '<td style="text-align:center;padding:6px 8px"><button onclick="toggleROI(' + idx + ',\'' + m + '\')" style="background:none;border:none;cursor:pointer;font-size:16px">' + (r[m]==='✓'?'✅':'⬜') + '</button></td>';
+        const icon = r[m]==='✓' ? '✅' : '⬜';
+        h += '<td style="text-align:center;padding:6px 8px"><button onclick="toggleROI(' + idx + ',&quot;' + m + '&quot;)" style="background:none;border:none;cursor:pointer;font-size:16px">' + icon + '</button></td>';
       });
       h += '<td style="padding:6px 8px"></td></tr>';
     });

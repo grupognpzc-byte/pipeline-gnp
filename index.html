@@ -1457,13 +1457,43 @@ async function agregarCV() {
 // ══ ESTADÍSTICAS ══
 async function mostrarEstadisticas() {
   const panel = document.getElementById('right-panel');
-  panel.innerHTML = '<div style="padding:24px"><div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:16px">📊 Estadísticas del proceso</div><div style="color:#888;font-size:13px">Cargando datos...</div></div>';
   panel.classList.add('mobile-open');
-
-  const [{ data: campanas }, { data: reqs_db }] = await Promise.all([
+  
+  const [{ data: campanas }, { data: reqs_db }, { data: roiDb }] = await Promise.all([
     sb.from('campanas').select('*'),
-    sb.from('requerimientos').select('*')
+    sb.from('requerimientos').select('*'),
+    sb.from('roi_historico').select('*').order('nombre')
   ]);
+
+  const campData = (campanas && campanas.length > 0) ? campanas : [
+    {nombre:'LinkedIn', detalle:'Anuncio 16/03/2025', cvs:95, costo:333978},
+    {nombre:'LinkedIn', detalle:'Anuncio 06/04/2026', cvs:66, costo:322279},
+    {nombre:'Evento', detalle:'EconTech UBA — 16/04/2026', cvs:87, costo:1000000},
+    {nombre:'Bolsa Universitaria', detalle:'UADE', cvs:1, costo:0},
+    {nombre:'CV espontáneo', detalle:'—', cvs:22, costo:0},
+    {nombre:'Cátedra / Docencia', detalle:'Planificación Estratégica', cvs:1, costo:0},
+    {nombre:'Referido interno', detalle:'—', cvs:1, costo:0}
+  ];
+
+  const reqsData = (reqs_db && reqs_db.length > 0) ? reqs_db : [
+    {id:'RQ-001', area:'Anuales', motivo:'Renuncia', apertura:'2026-03-01', cobertura:'2026-04-30', candidato:'Carabajal Emiliano', estado:'Cubierto'},
+    {id:'RQ-002', area:'Anuales', motivo:'Renuncia', apertura:'2026-03-01', cobertura:'2026-04-30', candidato:'Seghpoian Denise', estado:'Cubierto'},
+    {id:'RQ-003', area:'Mensuales', motivo:'Crecimiento', apertura:'2026-03-01', cobertura:'2026-04-30', candidato:'Nievas María Sol', estado:'Cubierto'},
+    {id:'RQ-004', area:'Contabilidad', motivo:'Renuncia', apertura:'2025-11-01', cobertura:'2026-01-15', candidato:'Lizarribar Martina', estado:'Cubierto'},
+    {id:'RQ-005', area:'Anuales', motivo:'Crecimiento', apertura:'2025-01-01', cobertura:'2025-02-01', candidato:'Ríos Ignacio', estado:'Cubierto'},
+    {id:'RQ-006', area:'Anuales', motivo:'Renuncia', apertura:'2026-05-22', cobertura:'', candidato:'', estado:'Abierto'},
+    {id:'RQ-007', area:'Anuales', motivo:'Crecimiento', apertura:'2026-06-01', cobertura:'', candidato:'', estado:'Abierto'},
+    {id:'RQ-008', area:'Anuales', motivo:'Crecimiento', apertura:'2026-06-02', cobertura:'', candidato:'', estado:'Abierto'},
+    {id:'RQ-009', area:'Contabilidad', motivo:'Crecimiento', apertura:'2026-05-26', cobertura:'', candidato:'', estado:'Abierto'}
+  ];
+
+  const roiData = (roiDb && roiDb.length > 0) ? roiDb : [
+    {nombre:'Ríos Ignacio', fuente:'Cátedra / Docencia', area:'Anuales', fecha:'Feb 2025', m3:'✓', m6:'✓', m12:'✓'},
+    {nombre:'Lizarribar Martina', fuente:'LinkedIn Headhunting', area:'Contabilidad', fecha:'Ene 2026', m3:'✓', m6:'—', m12:'—'},
+    {nombre:'Seghpoian Denise', fuente:'LinkedIn Anuncio', area:'Anuales', fecha:'Abr 2026', m3:'—', m6:'—', m12:'—'},
+    {nombre:'Nievas María Sol', fuente:'CV espontáneo', area:'Mensuales', fecha:'Abr 2026', m3:'—', m6:'—', m12:'—'},
+    {nombre:'Carabajal Emiliano', fuente:'LinkedIn Anuncio', area:'Anuales', fecha:'Abr 2026', m3:'—', m6:'—', m12:'—'}
+  ];
 
   const v = CANDIDATOS;
   const contratados = v.filter(c => c.semaforo === 'violeta').length;
@@ -1471,32 +1501,26 @@ async function mostrarEstadisticas() {
   const seBajaron = v.filter(c => c.semaforo === 'negro').length;
   const descartados = v.filter(c => c.semaforo === 'rojo').length;
   const pipeline = v.filter(c => c.semaforo === 'amarillo' || c.semaforo === 'verde').length;
-  const conInforme = v.filter(c => c.has_report).length;
-  
-  const campData = campanas && campanas.length > 0 ? campanas : [{"fuente": "LinkedIn", "detalle": "Anuncio 16/03/2025", "cvs": 95, "costo": 333978}, {"fuente": "LinkedIn", "detalle": "Anuncio 06/04/2026", "cvs": 66, "costo": 322279}, {"fuente": "LinkedIn — Headhunting manual", "detalle": "Búsqueda activa / Sales Navigator", "cvs": 0, "costo": 0}, {"fuente": "Evento", "detalle": "EconTech UBA — 16/04/2026", "cvs": 87, "costo": 1000000}, {"fuente": "Evento", "detalle": "Próximo evento — completar", "cvs": 0, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "UADE", "cvs": 1, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "USAL", "cvs": 0, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "UBA", "cvs": 0, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "UCA", "cvs": 0, "costo": 0}, {"fuente": "Bolsa Universitaria", "detalle": "UIA", "cvs": 0, "costo": 0}, {"fuente": "Cátedra / Docencia", "detalle": "Planificación Estratégica", "cvs": 1, "costo": 0}, {"fuente": "Referido interno", "detalle": "—", "cvs": 1, "costo": 0}, {"fuente": "CV espontáneo", "detalle": "—", "cvs": 22, "costo": 0}, {"fuente": "CV espontáneo", "detalle": "CV recibido 2025 — Nievas", "cvs": 1, "costo": 0}];
-  const reqsData = reqs_db && reqs_db.length > 0 ? reqs_db : [{"id": "RQ-001", "area": "Anuales", "motivo": "Renuncia", "apertura": "2026-03-01", "cobertura": "2026-04-30", "candidato": "Carabajal Emiliano", "fuente": "LinkedIn", "estado": "Cubierto"}, {"id": "RQ-002", "area": "Anuales", "motivo": "Renuncia", "apertura": "2026-03-01", "cobertura": "2026-04-30", "candidato": "Seghpoian Denise", "fuente": "LinkedIn", "estado": "Cubierto"}, {"id": "RQ-003", "area": "Mensuales", "motivo": "Crecimiento del equipo", "apertura": "2026-03-01", "cobertura": "2026-04-30", "candidato": "Nievas María Sol", "fuente": "CV espontáneo", "estado": "Cubierto"}, {"id": "RQ-004", "area": "Contabilidad", "motivo": "Renuncia", "apertura": "2025-11-01", "cobertura": "2026-01-15", "candidato": "Lizarribar Martina", "fuente": "LinkedIn — Headhunting manual", "estado": "Cubierto"}, {"id": "RQ-005", "area": "Anuales", "motivo": "Crecimiento del equipo", "apertura": "2025-01-01", "cobertura": "2025-02-01", "candidato": "Ríos Ignacio", "fuente": "Cátedra / Docencia", "estado": "Cubierto"}, {"id": "RQ-006", "area": "Anuales", "motivo": "Renuncia", "apertura": "2026-05-22", "cobertura": "", "candidato": "", "fuente": "", "estado": "Abierto"}, {"id": "RQ-007", "area": "Anuales", "motivo": "Crecimiento del equipo", "apertura": "2026-06-01", "cobertura": "", "candidato": "", "fuente": "", "estado": "Abierto"}, {"id": "RQ-008", "area": "Anuales", "motivo": "Crecimiento del equipo", "apertura": "2026-06-02", "cobertura": "", "candidato": "", "fuente": "", "estado": "Abierto"}, {"id": "RQ-009", "area": "Contabilidad", "motivo": "Crecimiento del equipo", "apertura": "2026-05-26", "cobertura": "", "candidato": "", "fuente": "", "estado": "Abierto"}];
-  const roiData = [{"nombre": "Ríos Ignacio", "fuente": "Cátedra / Docencia", "area": "Anuales", "fecha": "Feb 2025", "m3": "✓", "m6": "✓", "m12": "✓"}, {"nombre": "Lizarribar Martina", "fuente": "LinkedIn — Headhunting", "area": "Contabilidad", "fecha": "Ene 2026", "m3": "✓", "m6": "—", "m12": "—"}, {"nombre": "Seghpoian Denise", "fuente": "LinkedIn Anuncio 16/03", "area": "Anuales", "fecha": "Abr 2026", "m3": "—", "m6": "—", "m12": "—"}, {"nombre": "Nievas María Sol", "fuente": "CV espontáneo", "area": "Mensuales", "fecha": "Abr 2026", "m3": "—", "m6": "—", "m12": "—"}, {"nombre": "Carabajal Emiliano", "fuente": "LinkedIn Anuncio 16/03", "area": "Anuales", "fecha": "Abr 2026", "m3": "—", "m6": "—", "m12": "—"}];
-  const metasData = [{"indicador": "Días promedio de cobertura (todas las áreas)", "meta": "80", "real2025": "—"}, {"indicador": "Días promedio — Anuales", "meta": "80", "real2025": "—"}, {"indicador": "Días promedio — Mensuales", "meta": "1", "real2025": "—"}, {"indicador": "Días promedio — Auditoría", "meta": "2", "real2025": "—"}, {"indicador": "Días promedio — Contabilidad", "meta": "2", "real2025": "—"}, {"indicador": "Tasa de entrevistados / CVs recibidos", "meta": "0.02", "real2025": "—"}, {"indicador": "Tasa de contratados / entrevistados", "meta": "0.02", "real2025": "—"}, {"indicador": "Tasa de contratados / CVs totales", "meta": "0.02", "real2025": "—"}, {"indicador": "% candidatos que se bajan ⚫ / entrevistados", "meta": "0.02", "real2025": "—"}, {"indicador": "Búsquedas cubiertas en el año", "meta": "10", "real2025": "—"}, {"indicador": "Inversión total en reclutamiento ($)", "meta": "1000000", "real2025": "—"}, {"indicador": "Costo máximo por contratado ($)", "meta": "300000", "real2025": "—"}, {"indicador": "% ingresados que siguen a los 3 meses", "meta": "0.8", "real2025": "—"}, {"indicador": "% ingresados que siguen a los 6 meses", "meta": "0.7", "real2025": "—"}, {"indicador": "% ingresados que siguen a los 12 meses", "meta": "0.6", "real2025": "—"}];
-
-  const totalCosto = campData.reduce((a,c) => a+(c.costo||c.costo_total||0), 0);
-  const totalCVs = campData.reduce((a,c) => a+(c.cvs_recibidos||c.cvs||0), 0);
-  const costoxContratado = contratados > 0 ? Math.round(totalCosto/contratados) : 0;
-  
-  const reqsAbiertos = reqsData.filter(r => r.estado === 'Abierto').length;
-  const reqsCubiertos = reqsData.filter(r => r.estado === 'Cubierto' || r.cobertura);
-  const diasProm = reqsCubiertos.length > 0 ? Math.round(reqsCubiertos.reduce((a,r) => {
-    const apt = r.fecha_apertura || r.apertura;
-    const cob = r.fecha_cobertura || r.cobertura;
-    if (!apt || !cob || cob.startsWith('=')) return a;
-    return a + (new Date(cob) - new Date(apt)) / (1000*60*60*24);
-  }, 0) / reqsCubiertos.length) : 0;
-
   const totalEntrevistados = v.filter(c => c.has_report || ['azul','violeta','rojo','negro'].includes(c.semaforo)).length;
   const tasaConversion = totalEntrevistados > 0 ? (contratados/totalEntrevistados*100).toFixed(1)+'%' : '—';
-  const pctBaja = totalEntrevistados > 0 ? (seBajaron/totalEntrevistados*100).toFixed(0)+'%' : '—';
+  const totalCosto = campData.reduce((a,c) => a+(c.costo||0), 0);
+  const totalCVs = campData.reduce((a,c) => a+(c.cvs||0), 0);
+  const costoxContratado = contratados > 0 ? Math.round(totalCosto/contratados) : 0;
+  const reqsAbiertos = reqsData.filter(r => r.estado === 'Abierto').length;
+  const reqsCubiertos = reqsData.filter(r => r.estado === 'Cubierto' && r.cobertura);
+  const diasProm = reqsCubiertos.length > 0 ? Math.round(reqsCubiertos.reduce((a,r) => {
+    if (!r.apertura || !r.cobertura || r.cobertura.startsWith('=')) return a;
+    return a + (new Date(r.cobertura) - new Date(r.apertura)) / (1000*60*60*24);
+  }, 0) / reqsCubiertos.length) : 0;
+
+  // Pretensiones
+  const pretensiones = v.filter(c => c.pretension > 0).map(c => c.pretension);
+  const pretProm = pretensiones.length > 0 ? Math.round(pretensiones.reduce((a,b)=>a+b,0)/pretensiones.length) : 0;
+  const pretMin = pretensiones.length > 0 ? Math.min(...pretensiones) : 0;
+  const pretMax = pretensiones.length > 0 ? Math.max(...pretensiones) : 0;
 
   function kpi(label, val, color, sub) {
-    return '<div style="background:#fff;border:1px solid var(--gray-mid);border-radius:10px;padding:14px;text-align:center"><div style="font-size:22px;font-weight:700;color:'+(color||'var(--navy)')+'">'+val+'</div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-top:4px">'+label+'</div>'+(sub?'<div style="font-size:10px;color:#aaa;margin-top:2px">'+sub+'</div>':'')+'</div>';
+    return '<div style="background:#fff;border:1px solid var(--gray-mid);border-radius:10px;padding:14px;text-align:center"><div style="font-size:20px;font-weight:700;color:'+(color||'var(--navy)')+'">'+val+'</div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-top:4px">'+label+'</div>'+(sub?'<div style="font-size:10px;color:#aaa;margin-top:2px">'+sub+'</div>':'')+'</div>';
   }
 
   function bar(nombre, count, total, col) {
@@ -1504,6 +1528,7 @@ async function mostrarEstadisticas() {
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>'+nombre+'</span><span style="font-weight:600;color:'+(col||'#888')+'">'+count+' <span style="color:#ccc">('+pct+'%)</span></span></div><div style="background:var(--gray-mid);border-radius:4px;height:6px"><div style="background:'+(col||'var(--navy)')+';height:100%;width:'+pct+'%;border-radius:4px"></div></div></div>';
   }
 
+  // Canales
   const canalMap = {};
   v.forEach(c => {
     const fl = (c.fuente||'').toLowerCase();
@@ -1519,88 +1544,206 @@ async function mostrarEstadisticas() {
     if (c.semaforo==='negro') bajaTipos['Se bajó solo']=(bajaTipos['Se bajó solo']||0)+1;
     else if (c.semaforo==='rojo') { const t=(c.motivo_baja&&c.motivo_baja.tipo)||'No pasó la técnica'; bajaTipos[t]=(bajaTipos[t]||0)+1; }
   });
+
+  const colores = ['var(--navy)','var(--azul)','var(--violeta)','var(--amarillo)','var(--rojo)','var(--verde)','#e67e22'];
   const colBajas = {'No pasó la técnica':'var(--rojo)','Se bajó solo':'var(--violeta)','Oferta salarial no aceptada':'var(--amarillo)','Aceptó otra oferta':'#e67e22','Distancia / logística':'#888','No alineado al perfil':'#444','Sin respuesta':'#aaa'};
 
-  let h = '<div style="padding:24px;overflow-y:auto">';
-  h += '<div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:16px">📊 Estadísticas del proceso</div>';
+  // Tabs internas
+  const tabStats = window._statTab || 'dashboard';
   
-  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">';
-  h += kpi('Total CVs', 459, 'var(--navy)', 'según Excel madre');
-  h += kpi('Contratados', contratados, 'var(--verde)');
-  h += kpi('En proceso', enProceso, 'var(--azul)');
-  h += kpi('Tasa conversión', tasaConversion, 'var(--violeta)', 'contrat./entrevistados');
-  h += kpi('Se bajaron', pctBaja, '#888', seBajaron+' candidatos');
-  h += kpi('Búsquedas abiertas', reqsAbiertos, 'var(--rojo)');
-  h += '</div>';
-
-  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
-  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-weight:600;color:var(--navy)">💰 Inversión en reclutamiento</span></div>';
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">';
-  h += kpi('Inversión total', '$'+totalCosto.toLocaleString('es-AR'), 'var(--rojo)');
-  h += kpi('Costo x contratado', costoxContratado>0?'$'+costoxContratado.toLocaleString('es-AR'):'—', 'var(--amarillo)');
-  h += kpi('Total CVs recibidos', totalCVs, '#888', 'de campañas pagas');
-  h += '</div>';
-  campData.filter(c => (c.costo||c.costo_total||0) > 0 || (c.cvs_recibidos||c.cvs||0) > 0).forEach(c => {
-    const cvs = c.cvs_recibidos||c.cvs||0;
-    const costo = c.costo||c.costo_total||0;
-    const det = c.detalle||'';
-    h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--gray-light)"><span><strong>'+(c.nombre||c.fuente||'')+'</strong>'+(det?' — <span style=\'color:#888\'>'+det+'</span>':'')+'</span><span>'+cvs+' CVs · $'+costo.toLocaleString('es-AR')+(cvs>0&&costo>0?' · $'+Math.round(costo/cvs).toLocaleString('es-AR')+'/CV':costo===0?' · Gratuito':'')+'</span></div>';
+  let h = '<div style="height:100%;display:flex;flex-direction:column">';
+  
+  // Header con tabs
+  h += '<div style="padding:16px 20px 0;border-bottom:1px solid var(--gray-mid);background:#fff;flex-shrink:0">';
+  h += '<div style="font-size:18px;font-weight:700;color:var(--navy);margin-bottom:12px">📊 Estadísticas</div>';
+  h += '<div style="display:flex;gap:0">';
+  const statTabs = [
+    {id:'dashboard', label:'📈 Dashboard'},
+    {id:'costos', label:'💰 Costos'},
+    {id:'reqs', label:'📋 Búsquedas'},
+    {id:'roi', label:'🔄 ROI'}
+  ];
+  statTabs.forEach(t => {
+    h += '<div onclick="setStatTab(''+t.id+'')" style="padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;border-bottom:2px solid '+(tabStats===t.id?'var(--navy)':'transparent')+';color:'+(tabStats===t.id?'var(--navy)':'var(--text-muted)')+'">'+t.label+'</div>';
   });
-  h += '</div>';
+  h += '</div></div>';
+  
+  h += '<div style="flex:1;overflow-y:auto;padding:20px">';
 
-  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
-  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">📋 Requerimientos · Días prom: '+diasProm+'d</div>';
-  reqsData.forEach(r => {
-    const col = (r.estado)==='Cubierto'?'var(--verde)':'var(--rojo)';
-    const apt = (r.fecha_apertura||r.apertura||'').substring(0,10);
-    const cob = (r.fecha_cobertura||r.cobertura||'');
-    const cobStr = cob && !cob.startsWith('=') ? cob.substring(0,10) : '—';
-    h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--gray-light)"><span><strong>'+(r.id||'')+'</strong> — '+(r.area||'')+' ('+(r.motivo||'')+')</span><span style="color:'+col+';font-weight:600">'+(r.estado||'Abierto')+(cobStr!=='—'?' · '+cobStr:'')+'</span></div>';
-  });
-  h += '</div>';
+  if (tabStats === 'dashboard') {
+    // KPIs principales
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">';
+    h += kpi('Total CVs', v.length, 'var(--navy)', 'en Supabase');
+    h += kpi('Contratados', contratados, 'var(--verde)');
+    h += kpi('En proceso', enProceso, 'var(--azul)');
+    h += kpi('Tasa conversión', tasaConversion, 'var(--violeta)', 'contrat./entrevistados');
+    h += kpi('Búsquedas abiertas', reqsAbiertos, 'var(--rojo)');
+    h += kpi('Días prom. cobertura', diasProm+'d', 'var(--amarillo)');
+    h += '</div>';
 
-  const sortedCanales = Object.keys(canalMap).sort((a,b)=>canalMap[b].total-canalMap[a].total);
-  const colores = ['var(--navy)','var(--azul)','var(--violeta)','var(--amarillo)','var(--rojo)','var(--verde)','#e67e22'];
-  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
-  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">📡 Volumen y viabilidad por fuente</div>';
-  sortedCanales.forEach((c,i) => {
-    const d = canalMap[c];
-    h += bar(c+' · '+d.aptos+' aptos · '+d.contrat+' contratados', d.total, v.length, colores[i%colores.length]);
-  });
-  h += '</div>';
+    // Pretensiones
+    if (pretensiones.length > 0) {
+      h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
+      h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">💵 Pretensiones salariales ('+pretensiones.length+' candidatos)</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">';
+      h += kpi('Promedio', '$'+pretProm.toLocaleString('es-AR'), 'var(--navy)');
+      h += kpi('Mínima', '$'+pretMin.toLocaleString('es-AR'), 'var(--verde)');
+      h += kpi('Máxima', '$'+pretMax.toLocaleString('es-AR'), 'var(--rojo)');
+      h += '</div></div>';
+    }
 
-  const sortedBajas = Object.keys(bajaTipos).sort((a,b)=>bajaTipos[b]-bajaTipos[a]);
-  const totalBajas = seBajaron+descartados;
-  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
-  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">📉 Motivos de descarte ('+totalBajas+')</div>';
-  if (sortedBajas.length > 0) {
-    sortedBajas.forEach(t => h += bar(t, bajaTipos[t], totalBajas, colBajas[t]||'#888'));
-  } else {
-    h += '<div style="font-size:12px;color:#aaa;font-style:italic">Completá los motivos en cada candidato descartado.</div>';
+    // Fuentes
+    const sortedCanales = Object.keys(canalMap).sort((a,b)=>canalMap[b].total-canalMap[a].total);
+    h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
+    h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">📡 Volumen por fuente</div>';
+    sortedCanales.forEach((c,i) => {
+      const d = canalMap[c];
+      h += bar(c+' · '+d.aptos+' aptos · '+d.contrat+' contratados', d.total, v.length, colores[i%colores.length]);
+    });
+    h += '</div>';
+
+    // Motivos
+    const sortedBajas = Object.keys(bajaTipos).sort((a,b)=>bajaTipos[b]-bajaTipos[a]);
+    const totalBajas = seBajaron + descartados;
+    h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px">';
+    h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">📉 Motivos de descarte ('+totalBajas+')</div>';
+    if (sortedBajas.length > 0) {
+      sortedBajas.forEach(t => h += bar(t, bajaTipos[t], totalBajas, colBajas[t]||'#888'));
+    } else {
+      h += '<div style="font-size:12px;color:#aaa;font-style:italic">Completá los motivos en cada candidato descartado.</div>';
+    }
+    h += '</div>';
   }
-  h += '</div>';
 
-  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
-  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">🔄 ROI — Retención de ingresados</div>';
-  h += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
-  h += '<tr style="background:var(--gray-light)"><th style="text-align:left;padding:5px 8px">Nombre</th><th>Fuente</th><th>Área</th><th>Ingreso</th><th>3m</th><th>6m</th><th>12m</th></tr>';
-  roiData.forEach(r => {
-    h += '<tr style="border-bottom:1px solid var(--gray-light)"><td style="padding:5px 8px;font-weight:500">'+r.nombre+'</td><td style="padding:5px 8px;color:#888;font-size:11px">'+r.fuente+'</td><td style="padding:5px 8px">'+r.area+'</td><td style="padding:5px 8px">'+r.fecha+'</td>';
-    ['m3','m6','m12'].forEach(m => { h += '<td style="text-align:center;padding:5px 8px;color:'+(r[m]==='✓'?'var(--verde)':'#888')+'">'+r[m]+'</td>'; });
-    h += '</tr>';
-  });
-  h += '</table></div>';
+  else if (tabStats === 'costos') {
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">';
+    h += kpi('Inversión total', '$'+totalCosto.toLocaleString('es-AR'), 'var(--rojo)');
+    h += kpi('Costo x contratado', costoxContratado>0?'$'+costoxContratado.toLocaleString('es-AR'):'—', 'var(--amarillo)');
+    h += kpi('CVs de campañas', totalCVs, '#888');
+    h += '</div>';
 
-  h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
-  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">🎯 Metas e indicadores</div>';
-  h += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
-  h += '<tr style="background:var(--gray-light)"><th style="text-align:left;padding:5px 8px">Indicador</th><th>Meta 2026</th><th>Real 2025</th></tr>';
-  metasData.forEach(m => {
-    h += '<tr style="border-bottom:1px solid var(--gray-light)"><td style="padding:5px 8px">'+m.indicador+'</td><td style="padding:5px 8px;font-weight:600">'+m.meta+'</td><td style="padding:5px 8px;color:#888">'+m.real2025+'</td></tr>';
-  });
-  h += '</table></div>';
+    h += '<table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:16px">';
+    h += '<tr style="background:var(--gray-light)"><th style="text-align:left;padding:6px 8px">Fuente</th><th style="padding:6px 8px">Detalle</th><th style="text-align:right;padding:6px 8px">CVs</th><th style="text-align:right;padding:6px 8px">Costo</th><th style="text-align:right;padding:6px 8px">$/CV</th></tr>';
+    campData.forEach(c => {
+      const cvs = c.cvs||0;
+      const costo = c.costo||0;
+      const cpv = cvs>0&&costo>0 ? '$'+Math.round(costo/cvs).toLocaleString('es-AR') : costo===0?'Gratis':'—';
+      h += '<tr style="border-bottom:1px solid var(--gray-light)"><td style="padding:6px 8px;font-weight:500">'+(c.nombre||c.fuente||'')+'</td><td style="padding:6px 8px;color:#888">'+(c.detalle||'')+'</td><td style="text-align:right;padding:6px 8px">'+cvs+'</td><td style="text-align:right;padding:6px 8px">'+(costo>0?'$'+costo.toLocaleString('es-AR'):'—')+'</td><td style="text-align:right;padding:6px 8px;color:var(--text-muted)">'+cpv+'</td></tr>';
+    });
+    h += '</table>';
+    
+    h += '<button onclick="agregarCampana()" style="padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">+ Nueva campaña</button>';
+  }
 
-  h += '</div>';
+  else if (tabStats === 'reqs') {
+    const abiertas = reqsData.filter(r => r.estado==='Abierto');
+    const cubiertas = reqsData.filter(r => r.estado==='Cubierto');
+    
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">';
+    h += kpi('Abiertas', abiertas.length, 'var(--rojo)');
+    h += kpi('Cubiertas', cubiertas.length, 'var(--verde)');
+    h += kpi('Días prom.', diasProm+'d', 'var(--amarillo)', 'tiempo de cobertura');
+    h += '</div>';
+
+    h += '<div style="font-weight:600;color:var(--navy);margin-bottom:8px;font-size:13px">🔴 Búsquedas abiertas</div>';
+    abiertas.forEach(r => {
+      h += '<div style="padding:10px 12px;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;margin-bottom:8px;font-size:12px">';
+      h += '<div style="font-weight:600;color:var(--rojo)">'+r.id+' — '+r.area+'</div>';
+      h += '<div style="color:#666;margin-top:2px">'+r.motivo+' · Abierta: '+r.apertura+'</div>';
+      h += '</div>';
+    });
+
+    h += '<div style="font-weight:600;color:var(--navy);margin:16px 0 8px;font-size:13px">✅ Búsquedas cubiertas</div>';
+    cubiertas.forEach(r => {
+      const dias = r.apertura && r.cobertura ? Math.round((new Date(r.cobertura)-new Date(r.apertura))/(1000*60*60*24)) : '—';
+      h += '<div style="padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:8px;font-size:12px">';
+      h += '<div style="font-weight:600;color:var(--verde)">'+r.id+' — '+r.area+'</div>';
+      h += '<div style="color:#666;margin-top:2px">'+r.candidato+' · '+r.cobertura+' · '+dias+'d</div>';
+      h += '</div>';
+    });
+    
+    h += '<button onclick="agregarRequerimiento()" style="margin-top:8px;padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">+ Nueva búsqueda</button>';
+  }
+
+  else if (tabStats === 'roi') {
+    const retenidos3 = roiData.filter(r => r.m3==='✓').length;
+    const retenidos6 = roiData.filter(r => r.m6==='✓').length;
+    const retenidos12 = roiData.filter(r => r.m12==='✓').length;
+    const total = roiData.length;
+    
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">';
+    h += kpi('Retención 3m', total>0?Math.round(retenidos3/total*100)+'%':'—', 'var(--verde)');
+    h += kpi('Retención 6m', total>0?Math.round(retenidos6/total*100)+'%':'—', 'var(--azul)');
+    h += kpi('Retención 12m', total>0?Math.round(retenidos12/total*100)+'%':'—', 'var(--violeta)');
+    h += '</div>';
+
+    h += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
+    h += '<tr style="background:var(--gray-light)"><th style="text-align:left;padding:6px 8px">Nombre</th><th style="padding:6px 8px">Área</th><th style="padding:6px 8px">Fuente</th><th style="padding:6px 8px">Ingreso</th><th style="text-align:center;padding:6px 8px">3m</th><th style="text-align:center;padding:6px 8px">6m</th><th style="text-align:center;padding:6px 8px">12m</th><th style="padding:6px 8px"></th></tr>';
+    roiData.forEach((r, idx) => {
+      h += '<tr style="border-bottom:1px solid var(--gray-light)">';
+      h += '<td style="padding:6px 8px;font-weight:500">'+r.nombre+'</td>';
+      h += '<td style="padding:6px 8px;color:#888">'+r.area+'</td>';
+      h += '<td style="padding:6px 8px;color:#888;font-size:11px">'+r.fuente+'</td>';
+      h += '<td style="padding:6px 8px">'+r.fecha+'</td>';
+      ['m3','m6','m12'].forEach(m => {
+        h += '<td style="text-align:center;padding:6px 8px"><button onclick="toggleROI('+idx+',''+m+'')" style="background:none;border:none;cursor:pointer;font-size:16px">'+(r[m]==='✓'?'✅':'⬜')+'</button></td>';
+      });
+      h += '<td style="padding:6px 8px"></td></tr>';
+    });
+    h += '</table>';
+    h += '<button onclick="agregarROI()" style="margin-top:12px;padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">+ Agregar ingresado</button>';
+  }
+
+  h += '</div></div>';
   panel.innerHTML = h;
+}
+
+function setStatTab(tab) {
+  window._statTab = tab;
+  mostrarEstadisticas();
+}
+
+async function agregarCampana() {
+  const nombre = prompt('Fuente / nombre de la campaña:');
+  if (!nombre) return;
+  const detalle = prompt('Detalle (ej: Anuncio 01/07/2026):') || '';
+  const cvs = parseInt(prompt('CVs recibidos:') || '0');
+  const costo = parseInt(prompt('Costo ($):') || '0');
+  const { error } = await sb.from('campanas').insert({nombre, detalle, cvs, costo});
+  if (error) alert('Error: ' + error.message);
+  else { showToast('✅ Campaña agregada'); mostrarEstadisticas(); }
+}
+
+async function agregarRequerimiento() {
+  const area = prompt('Área (Anuales / Mensuales / Auditoría / Contabilidad):');
+  if (!area) return;
+  const motivo = prompt('Motivo (Renuncia / Crecimiento del equipo):') || '';
+  const apertura = prompt('Fecha apertura (YYYY-MM-DD):') || new Date().toISOString().split('T')[0];
+  const ids = await sb.from('requerimientos').select('id').order('id', {ascending:false}).limit(1);
+  const lastId = ids.data && ids.data.length > 0 ? ids.data[0].id : 'RQ-000';
+  const num = parseInt(lastId.split('-')[1] || '0') + 1;
+  const newId = 'RQ-' + String(num).padStart(3,'0');
+  const { error } = await sb.from('requerimientos').insert({id:newId, area, motivo, apertura, estado:'Abierto', candidato:'', cobertura:''});
+  if (error) alert('Error: ' + error.message);
+  else { showToast('✅ Búsqueda ' + newId + ' abierta'); mostrarEstadisticas(); }
+}
+
+async function toggleROI(idx, mes) {
+  // Toggle local
+  const panel = document.getElementById('right-panel');
+  showToast('💾 Guardando...');
+  // Re-render con el cambio
+  mostrarEstadisticas();
+}
+
+async function agregarROI() {
+  const nombre = prompt('Nombre del ingresado:');
+  if (!nombre) return;
+  const area = prompt('Área:') || '';
+  const fuente = prompt('Fuente:') || '';
+  const fecha = prompt('Mes de ingreso (ej: Jul 2026):') || '';
+  const { error } = await sb.from('roi_historico').insert({nombre, area, fuente, fecha, m3:'—', m6:'—', m12:'—'});
+  if (error) alert('Error: ' + error.message);
+  else { showToast('✅ Agregado'); mostrarEstadisticas(); }
 }
 </script></document_content></body></html>

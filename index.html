@@ -463,6 +463,10 @@ function candidatoToRow(c) {
     entrevista2: c.entrevista2 || '—', has_report: c.has_report || c.hasReport || false,
     proximo: c.proximo || false, distancia: c.distancia || '',
     cv_link: c.cv_link || c.cvLink || '',
+    pretension: c.pretension || null,
+    historial_contactos: c.historial_contactos || [],
+    soft_hora: c.soft_hora || '',
+    soft_modalidad: c.soft_modalidad || '',
     informe_soft: c.informe_soft || (c.informe && c.informe.soft) || '',
     informe_tecnico: c.informe_tecnico || (c.informe && c.informe.tecnico) || '',
     informe_conclusion: c.informe_conclusion || (c.informe && c.informe.conclusion) || '',
@@ -560,8 +564,7 @@ function renderDetalle() {
     { id: 'informe', label: 'Informe' },
     { id: 'pipeline', label: 'Datos' },
     { id: 'estado', label: 'Estado' },
-    ...(c.semaforo === 'azul' ? [{ id: 'tecnica', label: '🎯 Técnica' }] : []),
-    ...(c.semaforo === 'azul' && c.tecnica_info && c.tecnica_info.confirmada ? [{ id: 'tercera', label: '👔 3ra Instancia' }] : []),
+    ...(c.semaforo === 'azul' || c.semaforo === 'violeta' || c.semaforo === 'rojo' || c.semaforo === 'negro' ? [{ id: 'proceso', label: '📋 Proceso' }] : []),
     ...(c.semaforo === 'violeta' ? [{ id: 'acuerdo', label: '🤝 Acuerdo' }] : []),
     ...((c.semaforo === 'rojo' || c.semaforo === 'negro') ? [{ id: 'baja', label: '📋 Baja' }] : [])
   ];
@@ -580,8 +583,9 @@ function renderDetalle() {
         ${(c.has_report||c.hasReport) ? `<span class="dbadge dbadge-blue">★ Con informe</span>` : ''}
       </div>
     </div>
-    <div class="tabs">
-      ${tabs.map(t => `<div class="tab ${tabActiva===t.id?'active':''}" onclick="setTab('${t.id}')">${t.label}</div>`).join('')}
+    <div class="tabs" style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex">${tabs.map(t => `<div class="tab ${tabActiva===t.id?'active':''}" onclick="setTab('${t.id}')">${t.label}</div>`).join('')}</div>
+      <button onclick="exportarPDF('${c.id}')" style="margin-right:16px;padding:5px 12px;font-size:11px;background:#fff;border:1px solid var(--gray-mid);border-radius:14px;cursor:pointer;color:var(--navy)">📄 PDF</button>
     </div>
     <div class="tab-content" id="tab-content"></div>
   `;
@@ -625,6 +629,7 @@ function renderTab() {
         <div class="field-item full"><label>Carrera</label><input id="ed-carrera" value="${c.carrera||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
         <div class="field-item full"><label>Experiencia</label><textarea id="ed-experiencia" rows="3" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;font-family:inherit;resize:none;outline:none">${c.experiencia||''}</textarea></div>
         <div class="field-item full"><label>Fuente</label><select id="ed-fuente" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none">${fuenteOpts.map(f => `<option ${c.fuente===f?'selected':''}>${f}</option>`).join('')}</select></div>
+        <div class="field-item"><label>Pretensión salarial ($)</label><input id="ed-pretension" type="number" value="${c.pretension||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
         <div class="field-item"><label>1° Entrevista</label><input id="ed-ent1" value="${c.entrevista1||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
         <div class="field-item"><label>2° Instancia</label><input id="ed-ent2" value="${c.entrevista2||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
       </div>
@@ -670,6 +675,133 @@ function renderTab() {
         <div class="field-item full"><label>Observaciones</label><textarea id="ac-obs" rows="3" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;font-family:inherit;outline:none">${ac.obs||''}</textarea></div>
       </div>
       <button onclick="guardarAcuerdo('${c.id}')" style="margin-top:16px;padding:10px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">💾 Guardar acuerdo</button>
+    `;
+  }
+
+  else if (tabActiva === 'proceso') {
+    const t = c.tecnica_info || {};
+    const tr = c.tercera_info || {};
+    const hist = c.historial_contactos || [];
+    
+    cont.innerHTML = `
+      <!-- COORDINACIÓN ENTREVISTA SOFT -->
+      <div style="margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="section-title" style="margin:0">📅 ENTREVISTA SOFT</div>
+        </div>
+        <div class="fields-grid">
+          <div class="field-item"><label>Fecha</label><input type="date" id="soft-fecha" value="${c.entrevista1&&c.entrevista1!=='—'?c.entrevista1:''}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+          <div class="field-item"><label>Hora</label><input type="time" id="soft-hora" value="${c.soft_hora||''}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+          <div class="field-item"><label>Modalidad</label>
+            <select id="soft-modal" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px">
+              <option ${(c.soft_modalidad||'')===''?'selected':''}>— Elegir —</option>
+              <option ${c.soft_modalidad==='teams'?'selected':''} value="teams">Teams</option>
+              <option ${c.soft_modalidad==='presencial'?'selected':''} value="presencial">Presencial</option>
+            </select>
+          </div>
+          <div class="field-item"><label>Pretensión salarial ($)</label><input id="soft-pretension" type="number" value="${c.pretension||''}" placeholder="1400000" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="guardarSoft('${c.id}')" style="padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">💾 Guardar</button>
+          <button onclick="generarICS('${c.id}','soft')" style="padding:8px 16px;background:#fff;border:1px solid var(--azul);color:var(--azul);border-radius:6px;cursor:pointer;font-size:13px">📅 Invitación .ics</button>
+        </div>
+      </div>
+
+      <!-- HISTORIAL DE CONTACTOS -->
+      <div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:24px">
+        <div class="section-title">📞 HISTORIAL DE CONTACTOS</div>
+        <div id="hist-lista" style="margin-bottom:10px">
+          ${hist.length === 0 ? '<div style="font-size:12px;color:#aaa;font-style:italic">Sin contactos registrados</div>' : 
+            hist.map((h,i) => '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--gray-light);border-radius:6px;margin-bottom:4px;font-size:12px"><span>'+h.fecha+' · '+h.canal+' · '+(h.respuesta?'✅ Respondió':'⏳ Sin respuesta')+'</span><button onclick="borrarContacto(''+c.id+'','+i+')" style="background:none;border:none;cursor:pointer;color:#aaa;font-size:14px">✕</button></div>').join('')
+          }
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="date" id="cont-fecha" style="padding:6px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:12px">
+          <select id="cont-canal" style="padding:6px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:12px">
+            <option>WhatsApp</option><option>Mail</option><option>LinkedIn</option><option>Teléfono</option>
+          </select>
+          <select id="cont-resp" style="padding:6px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:12px">
+            <option value="0">Sin respuesta</option><option value="1">Respondió</option>
+          </select>
+          <button onclick="agregarContacto('${c.id}')" style="padding:6px 14px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">+ Agregar</button>
+        </div>
+      </div>
+
+      <!-- INSTANCIA TÉCNICA -->
+      <div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="section-title" style="margin:0">🎯 INSTANCIA TÉCNICA</div>
+          <button onclick="toggleSeccion('sec-tecnica')" style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-mid);background:#fff;border-radius:14px;cursor:pointer">${t.confirmada?'✓ Asignada — Ver/Editar':'+ Asignar'}</button>
+        </div>
+        <div id="sec-tecnica" style="display:${t.confirmada?'none':'none'}">
+          ${t.confirmada ? `
+            <div style="background:#e8f0fb;border:1px solid #c5d8f5;border-radius:8px;padding:12px;margin-bottom:10px">
+              <div style="font-weight:600;color:var(--navy)">${t.gerente||'—'}</div>
+              <div style="font-size:12px;color:#555;margin-top:2px">${t.fecha||'—'} · ${t.hora||'—'}hs · Piso ${t.piso||'—'} · ${t.modalidad||'—'}</div>
+            </div>
+          ` : ''}
+          <div class="fields-grid">
+            <div class="field-item full"><label>Gerente/s (Ctrl+clic para varios)</label>
+              <select id="t-gerente-${c.id}" multiple style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;height:150px">
+                ${GERENTES.map(g => '<option value="'+g.mail+'" '+(t.mails&&t.mails.includes(g.mail)?'selected':'')+'>'+g.area+' — '+g.nombre+'</option>').join('')}
+              </select>
+            </div>
+            <div class="field-item"><label>Fecha</label><input type="date" id="t-fecha-${c.id}" value="${t.fecha||''}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+            <div class="field-item"><label>Hora</label><input type="time" id="t-hora-${c.id}" value="${t.hora||''}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+            <div class="field-item"><label>Piso</label>
+              <select id="t-piso-${c.id}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px">
+                <option ${t.piso==='3'?'selected':''}>3</option><option ${t.piso==='6'?'selected':''}>6</option><option ${t.piso==='7'?'selected':''}>7</option><option ${t.piso==='9'?'selected':''}>9</option>
+              </select>
+            </div>
+            <div class="field-item"><label>Modalidad</label>
+              <select id="t-modal-${c.id}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px">
+                <option value="presencial" ${t.modalidad==='presencial'?'selected':''}>Presencial</option>
+                <option value="virtual" ${t.modalidad==='virtual'?'selected':''}>Virtual</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button onclick="confirmarTecnica('${c.id}')" style="padding:8px 16px;background:var(--navy);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">✅ Confirmar</button>
+            <button onclick="generarICS('${c.id}','tecnica')" style="padding:8px 16px;background:#fff;border:1px solid var(--azul);color:var(--azul);border-radius:6px;cursor:pointer;font-size:13px">📅 .ics</button>
+          </div>
+        </div>
+        ${t.confirmada ? '<div style="font-size:13px;color:var(--verde)">✓ '+t.gerente+' · '+(t.fecha||'')+(t.hora?' · '+t.hora+'hs':'')+' · Piso '+(t.piso||'')+'</div>' : '<div style="font-size:12px;color:#aaa;font-style:italic">Sin asignar</div>'}
+      </div>
+
+      <!-- 3RA INSTANCIA -->
+      <div style="border-top:1px solid var(--gray-mid);padding-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="section-title" style="margin:0">👔 3RA INSTANCIA</div>
+          <button onclick="toggleSeccion('sec-tercera')" style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-mid);background:#fff;border-radius:14px;cursor:pointer">${tr.confirmada?'✓ Asignada — Ver/Editar':'+ Asignar'}</button>
+        </div>
+        <div id="sec-tercera" style="display:none">
+          <div class="fields-grid">
+            <div class="field-item full"><label>Participantes (Ctrl+clic para varios)</label>
+              <select id="tr-gerente-${c.id}" multiple style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;height:150px">
+                ${GERENTES.map(g => '<option value="'+g.mail+'" '+(tr.mails&&tr.mails.includes(g.mail)?'selected':'')+'>'+g.area+' — '+g.nombre+'</option>').join('')}
+              </select>
+            </div>
+            <div class="field-item"><label>Fecha</label><input type="date" id="tr-fecha-${c.id}" value="${tr.fecha||''}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+            <div class="field-item"><label>Hora</label><input type="time" id="tr-hora-${c.id}" value="${tr.hora||''}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+            <div class="field-item"><label>Piso</label>
+              <select id="tr-piso-${c.id}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px">
+                <option ${tr.piso==='3'?'selected':''}>3</option><option ${tr.piso==='6'?'selected':''}>6</option><option ${tr.piso==='7'?'selected':''}>7</option><option ${tr.piso==='9'?'selected':''}>9</option>
+              </select>
+            </div>
+            <div class="field-item"><label>Modalidad</label>
+              <select id="tr-modal-${c.id}" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px">
+                <option value="presencial" ${tr.modalidad==='presencial'?'selected':''}>Presencial</option>
+                <option value="virtual" ${tr.modalidad==='virtual'?'selected':''}>Virtual</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button onclick="confirmarTercera('${c.id}')" style="padding:8px 16px;background:var(--violeta);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">✅ Confirmar</button>
+            <button onclick="generarICS('${c.id}','tercera')" style="padding:8px 16px;background:#fff;border:1px solid var(--violeta);color:var(--violeta);border-radius:6px;cursor:pointer;font-size:13px">📅 .ics</button>
+          </div>
+        </div>
+        ${tr.confirmada ? '<div style="font-size:13px;color:var(--violeta)">✓ '+tr.gerentes+' · '+(tr.fecha||'')+(tr.hora?' · '+tr.hora+'hs':'')+' · Piso '+(tr.piso||'')+'</div>' : '<div style="font-size:12px;color:#aaa;font-style:italic">Sin asignar</div>'}
+      </div>
     `;
   }
 
@@ -872,6 +1004,159 @@ function asignarTercera(cId) {
   renderDetalle();
 }
 
+
+
+function exportarPDF(cId) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  if (!c) return;
+  
+  const soft = c.informe_soft || '';
+  const tec = c.informe_tecnico || '';
+  const conc = c.informe_conclusion || '';
+  const t = c.tecnica_info || {};
+  const tr = c.tercera_info || {};
+  
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 40px auto; color: #1a1a1a; font-size: 14px; line-height: 1.7; }
+    h1 { font-size: 22px; color: #1a2744; margin-bottom: 4px; }
+    .sub { font-size: 12px; color: #666; margin-bottom: 24px; }
+    .section { margin-bottom: 24px; }
+    .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #666; margin-bottom: 8px; border-bottom: 1px solid #e8e4dc; padding-bottom: 4px; }
+    .content { white-space: pre-wrap; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-right: 6px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .info-item label { font-size: 10px; font-weight: 600; text-transform: uppercase; color: #666; display: block; }
+    .info-item span { font-size: 13px; font-weight: 500; }
+  </style></head><body>
+  <h1>${c.nombre}</h1>
+  <div class="sub">${c.carrera||''} · ${c.localidad||''} · ${c.edad||''} años</div>
+  
+  <div class="info-grid">
+    <div class="info-item"><label>Área</label><span>${c.area||'—'}</span></div>
+    <div class="info-item"><label>Fuente</label><span>${c.fuente||'—'}</span></div>
+    <div class="info-item"><label>Celular</label><span>${c.celular||'—'}</span></div>
+    <div class="info-item"><label>Mail</label><span>${c.mail||'—'}</span></div>
+    <div class="info-item"><label>Pretensión salarial</label><span>${c.pretension ? '$' + c.pretension.toLocaleString('es-AR') : '—'}</span></div>
+    <div class="info-item"><label>Disponibilidad</label><span>${c.entrevista2||'—'}</span></div>
+  </div>
+  
+  ${soft ? '<div class="section"><div class="section-title">Informe Soft</div><div class="content">'+soft+'</div></div>' : ''}
+  ${conc ? '<div class="section"><div class="section-title">En Conclusión</div><div class="content">'+conc+'</div></div>' : ''}
+  ${tec ? '<div class="section"><div class="section-title">Informe Técnico</div><div class="content">'+tec+'</div></div>' : ''}
+  ${t.confirmada ? '<div class="section"><div class="section-title">Instancia Técnica</div><div class="content">'+t.gerente+' · '+(t.fecha||'')+' · '+(t.hora||'')+'hs · Piso '+(t.piso||'')+' · '+(t.modalidad||'')+'</div></div>' : ''}
+  ${tr.confirmada ? '<div class="section"><div class="section-title">3ra Instancia</div><div class="content">'+tr.gerentes+' · '+(tr.fecha||'')+' · '+(tr.hora||'')+'hs · Piso '+(tr.piso||'')+' · '+(tr.modalidad||'')+'</div></div>' : ''}
+  </body></html>`;
+  
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
+}
+
+function toggleSeccion(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function guardarSoft(cId) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  c.entrevista1 = document.getElementById('soft-fecha').value || c.entrevista1;
+  c.soft_hora = document.getElementById('soft-hora').value;
+  c.soft_modalidad = document.getElementById('soft-modal').value;
+  c.pretension = parseInt(document.getElementById('soft-pretension').value) || null;
+  await guardarCandidato(c);
+}
+
+async function agregarContacto(cId) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  if (!c.historial_contactos) c.historial_contactos = [];
+  const fecha = document.getElementById('cont-fecha').value;
+  const canal = document.getElementById('cont-canal').value;
+  const respuesta = document.getElementById('cont-resp').value === '1';
+  if (!fecha) { alert('Ingresá una fecha'); return; }
+  c.historial_contactos.push({ fecha, canal, respuesta });
+  await guardarCandidato(c);
+  renderDetalle();
+}
+
+async function borrarContacto(cId, idx) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  c.historial_contactos.splice(idx, 1);
+  await guardarCandidato(c);
+  renderDetalle();
+}
+
+function generarICS(cId, tipo) {
+  const c = CANDIDATOS.find(x => x.id === cId);
+  let titulo, fecha, hora, piso, modalidad, mails;
+  
+  if (tipo === 'soft') {
+    titulo = 'Entrevista Soft — ' + c.nombre;
+    fecha = c.entrevista1 || '';
+    hora = c.soft_hora || '10:00';
+    piso = '9';
+    modalidad = c.soft_modalidad || 'Teams';
+    mails = [c.mail || ''];
+  } else if (tipo === 'tecnica') {
+    const t = c.tecnica_info || {};
+    titulo = 'Entrevista Técnica — ' + c.nombre;
+    fecha = t.fecha || '';
+    hora = t.hora || '10:00';
+    piso = t.piso || '9';
+    modalidad = t.modalidad || 'presencial';
+    mails = (t.mails || []).concat([c.mail || '']);
+  } else {
+    const tr = c.tercera_info || {};
+    titulo = '3ra Instancia — ' + c.nombre;
+    fecha = tr.fecha || '';
+    hora = tr.hora || '10:00';
+    piso = tr.piso || '9';
+    modalidad = tr.modalidad || 'presencial';
+    mails = (tr.mails || []).concat([c.mail || '']);
+  }
+  
+  if (!fecha) { alert('Primero cargá la fecha'); return; }
+  
+  const [y, m, d] = fecha.split('-');
+  const [hh, mm] = hora.split(':');
+  const dtStart = y + m + d + 'T' + hh + mm + '00';
+  const endHH = String(parseInt(hh) + 1).padStart(2, '0');
+  const dtEnd = y + m + d + 'T' + endHH + mm + '00';
+  
+  const attendees = mails.filter(Boolean).map(mail => 
+    'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;CN=' + mail + ':mailto:' + mail
+  ).join('\n');
+  
+  const ubicacion = modalidad === 'virtual' || modalidad === 'teams' ? 'Microsoft Teams' : 'Arenales 1618 Piso ' + piso + ', Recoleta, CABA';
+  
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//GNP Pipeline//ES',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    'UID:' + Date.now() + '@grupognp.com',
+    'DTSTART:' + dtStart,
+    'DTEND:' + dtEnd,
+    'SUMMARY:' + titulo,
+    'LOCATION:' + ubicacion,
+    'DESCRIPTION:Proceso de selección Grupo GNP — ' + c.nombre,
+    attendees,
+    'ORGANIZER;CN=RRHH GNP:mailto:rrhh@grupognp.com',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
+  
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = titulo.replace(/[^a-zA-Z0-9]/g, '_') + '.ics';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function guardarDatos(cId) {
   const c = CANDIDATOS.find(x => x.id === cId);
   c.nombre = document.getElementById('ed-nombre').value.trim() || c.nombre;
@@ -883,6 +1168,7 @@ async function guardarDatos(cId) {
   c.carrera = document.getElementById('ed-carrera').value.trim();
   c.experiencia = document.getElementById('ed-experiencia').value.trim();
   c.fuente = document.getElementById('ed-fuente').value;
+  c.pretension = parseInt(document.getElementById('ed-pretension').value) || null;
   c.entrevista1 = document.getElementById('ed-ent1').value.trim();
   c.entrevista2 = document.getElementById('ed-ent2').value.trim();
   await guardarCandidato(c);

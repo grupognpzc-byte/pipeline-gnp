@@ -237,7 +237,6 @@
     <button class="filter-btn s-azul" onclick="setFilter('azul',this)">🔵 En proceso</button>
     <button class="filter-btn s-violeta" onclick="setFilter('violeta',this)">🟣 Contratados</button>
     <button class="filter-btn s-rojo" onclick="setFilter('rojo',this)">🔴 Descartados</button>
-    <button class="filter-btn" onclick="setFilter('bajaron',this)">⚫ Se bajaron</button>
     <button class="filter-btn s-amarillo" onclick="setFilter('amarillo',this)">🟡 Pipeline futuro</button>
     <button class="filter-btn" onclick="setFilter('informe',this)">★ Con informe</button>
     <button class="filter-btn" onclick="setFilter('anuales',this)">📁 Anuales</button>
@@ -356,29 +355,7 @@
 <script>
 const SUPABASE_URL = 'https://gtgnzfjvufqkrrbscccd.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0Z256Zmp2dWZxa3JyYnNjY2NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjY4NzMsImV4cCI6MjA5NzkwMjg3M30.LJ1F8lu4h55m5cVfPM0oXzoKAOA32E9u98gPLajQaBs';
-
-// ══ FUNCIÓN PROXY — llama a Netlify que llama a Anthropic ══
-async function callClaude(messages, maxTokens) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': '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',
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-calls': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: maxTokens || 1500,
-      messages: messages
-    })
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Error ' + res.status);
-  }
-  return await res.json();
-}
+const CLAUDE_KEY = ''; // Key is handled server-side via Netlify function // Zul: reemplazá con tu API key de Anthropic
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -453,7 +430,7 @@ function candidatoToRow(c) {
     informe_soft: c.informe_soft || (c.informe && c.informe.soft) || '',
     informe_tecnico: c.informe_tecnico || (c.informe && c.informe.tecnico) || '',
     informe_conclusion: c.informe_conclusion || (c.informe && c.informe.conclusion) || '',
-    propuesta: c.propuesta || '',
+    propuesta: c.propuesta || c.informe_propuesta || '',
     acuerdo: c.acuerdo || {}, motivo_baja: c.motivo_baja || {},
     tecnica_info: c.tecnica_info || {}, tercera_info: c.tercera_info || {},
     updated_at: new Date().toISOString()
@@ -472,7 +449,7 @@ function showToast(msg, isError) {
 }
 
 function updateStats() {
-  document.getElementById('st-total').textContent = CANDIDATOS.length;
+  document.getElementById('st-total').textContent = 459;
   document.getElementById('st-proceso').textContent = CANDIDATOS.filter(c => c.semaforo === 'azul').length;
   document.getElementById('st-contratados').textContent = CANDIDATOS.filter(c => c.semaforo === 'violeta').length;
   document.getElementById('st-pipeline').textContent = CANDIDATOS.filter(c => c.semaforo === 'amarillo' || c.semaforo === 'verde').length;
@@ -483,7 +460,6 @@ function getLista() {
     if (filtroActivo === 'azul' && c.semaforo !== 'azul') return false;
     if (filtroActivo === 'violeta' && c.semaforo !== 'violeta') return false;
     if (filtroActivo === 'rojo' && c.semaforo !== 'rojo' && c.semaforo !== 'negro') return false;
-    if (filtroActivo === 'bajaron' && c.semaforo !== 'negro') return false;
     if (filtroActivo === 'amarillo' && c.semaforo !== 'amarillo' && c.semaforo !== 'verde') return false;
     if (filtroActivo === 'informe' && !c.has_report && !c.hasReport) return false;
     if (filtroActivo === 'anuales' && !(c.area||'').toLowerCase().includes('anual')) return false;
@@ -508,7 +484,6 @@ function renderLista() {
           ${c.area ? `<span class="badge badge-area">${c.area}</span>` : ''}
           <span class="badge badge-estado">${c.estado || ''}</span>
           ${(c.has_report || c.hasReport) ? '<span class="badge badge-informe">Informe</span>' : ''}
-          ${(c.semaforo==='rojo'||c.semaforo==='negro') && c.motivo_baja && c.motivo_baja.tipo ? '<span class="badge" style="background:#fee2e2;color:#b8332a;font-size:9px">'+c.motivo_baja.tipo+'</span>' : ''}
         </div>
       </div>
     </div>
@@ -530,6 +505,7 @@ function selectCandidato(id) {
   tabActiva = 'informe';
   renderLista();
   renderDetalle();
+  // Mobile
   document.getElementById('right-panel').classList.add('mobile-open');
 }
 
@@ -581,40 +557,42 @@ function renderTab() {
   const cont = document.getElementById('tab-content');
 
   if (tabActiva === 'informe') {
-    const soft = c.informe_soft || (c.informe && c.informe.soft) || '';
-    const tec = c.informe_tecnico || (c.informe && c.informe.tecnico) || '';
-    const conc = c.informe_conclusion || (c.informe && c.informe.conclusion) || '';
+    const soft = c.informe_soft || '';
+    const tec = c.informe_tecnico || '';
+    const conc = c.informe_conclusion || '';
+    const prop = c.propuesta || '';
     cont.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div class="section-title" style="margin:0">INFORME SOFT</div>
         <button onclick="abrirModalTranscripcion('${c.id}')" style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-mid);background:#fff;border-radius:14px;cursor:pointer;color:var(--navy)">✨ Desde transcripción</button>
       </div>
       ${editableBlock(c, 'informe_soft', soft)}
-      <div class="section-title">INFORME TÉCNICO</div>
+      
+      <div class="section-title" style="margin-top:16px">INFORME TÉCNICO</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-style:italic">A completar por el gerente en la instancia técnica</div>
       ${editableBlock(c, 'informe_tecnico', tec)}
-      <div class="section-title">EN CONCLUSIÓN</div>
+      
+      <div class="section-title" style="margin-top:16px">EN CONCLUSIÓN</div>
       ${editableBlock(c, 'informe_conclusion', conc)}
+      
+      ${prop ? '<div class="section-title" style="margin-top:16px">EVALUACIÓN TERCERA INSTANCIA</div>' + editableBlock(c, 'propuesta', prop) : ''}
     `;
   }
 
   else if (tabActiva === 'pipeline') {
-    const fuenteOpts = ['LinkedIn — Headhunting manual','LinkedIn Anuncio','Evento — EconTech UBA','Bolsa Universitaria — UADE','Bolsa Universitaria — UBA','CV espontáneo','Cátedra / Docencia','Referido interno'];
     cont.innerHTML = `
       <div class="fields-grid">
-        <div class="field-item"><label>Nombre</label><input id="ed-nombre" value="${c.nombre||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
-        <div class="field-item"><label>Edad</label><input id="ed-edad" type="number" value="${c.edad||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
-        <div class="field-item"><label>Celular</label><input id="ed-celular" value="${c.celular||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
-        <div class="field-item"><label>Mail</label><input id="ed-mail" value="${c.mail||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
-        <div class="field-item"><label>Localidad</label><input id="ed-localidad" value="${c.localidad||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
-        <div class="field-item"><label>Distancia</label><input id="ed-distancia" value="${c.distancia||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
-        <div class="field-item full"><label>Carrera</label><input id="ed-carrera" value="${c.carrera||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
-        <div class="field-item full"><label>Experiencia</label><textarea id="ed-experiencia" rows="3" style="width:100%;padding:8px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;font-family:inherit;resize:none;outline:none">${c.experiencia||''}</textarea></div>
-        <div class="field-item full"><label>Fuente</label><select id="ed-fuente" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none">${fuenteOpts.map(f => `<option ${c.fuente===f?'selected':''}>${f}</option>`).join('')}</select></div>
-        <div class="field-item"><label>1° Entrevista</label><input id="ed-ent1" value="${c.entrevista1||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
-        <div class="field-item"><label>2° Instancia</label><input id="ed-ent2" value="${c.entrevista2||''}" style="width:100%;padding:8px 10px;border:1px solid var(--gray-mid);border-radius:6px;font-size:13px;outline:none"></div>
+        <div class="field-item"><label>Celular</label><div class="field-val">${c.celular||'—'}</div></div>
+        <div class="field-item"><label>Mail</label><div class="field-val" style="word-break:break-all">${c.mail||'—'}</div></div>
+        <div class="field-item full"><label>Carrera</label><div class="field-val">${c.carrera||'—'}</div></div>
+        <div class="field-item full"><label>Experiencia</label><div class="field-val">${c.experiencia||'—'}</div></div>
+        <div class="field-item"><label>Fuente</label><div class="field-val">${c.fuente||'—'}</div></div>
+        <div class="field-item"><label>Distancia</label><div class="field-val">${c.distancia||'—'}</div></div>
+        <div class="field-item full"><label>Resumen</label><div class="field-val">${c.resumen||'—'}</div></div>
+        <div class="field-item"><label>1° Entrevista</label><div class="field-val">${c.entrevista1||'—'}</div></div>
+        <div class="field-item"><label>2° Instancia</label><div class="field-val">${c.entrevista2||'—'}</div></div>
       </div>
-      <button onclick="guardarDatos('${c.id}')" style="margin-top:16px;padding:10px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">💾 Guardar datos</button>
-      ${c.cv_link||c.cvLink ? `<div style="margin-top:12px"><a href="${c.cv_link||c.cvLink}" target="_blank" style="color:var(--azul);font-size:13px">📎 Ver CV en Drive</a></div>` : ''}
+      ${c.cv_link||c.cvLink ? `<div style="margin-top:16px"><a href="${c.cv_link||c.cvLink}" target="_blank" style="color:var(--azul);font-size:13px">📎 Ver CV en Drive</a></div>` : ''}
     `;
   }
 
@@ -659,21 +637,25 @@ function renderTab() {
   }
 
   else if (tabActiva === 'baja') {
-    const bj = c.motivo_baja || c.motivoBaja || {};
+    const bj = c.motivo_baja || {};
     const opts = ['No pasó la técnica','Se bajó solo','Oferta salarial no aceptada','Aceptó otra oferta','Distancia / logística','No alineado al perfil','Sin respuesta'];
     cont.innerHTML = `
       <div class="section-title">TIPO DE BAJA</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-        ${opts.map(o => `<label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid ${bj.tipo===o?'var(--navy)':'var(--gray-mid)'};border-radius:20px;cursor:pointer;font-size:13px;background:${bj.tipo===o?'var(--navy)':'#fff'};color:${bj.tipo===o?'#fff':'inherit'};transition:all .2s">
-          <input type="radio" name="bj-tipo" value="${o}" ${bj.tipo===o?'checked':''} style="display:none" onchange="this.closest('[style]').style.background='var(--navy)';this.closest('[style]').style.color='#fff';this.closest('[style]').style.borderColor='var(--navy)'">${o}</label>`).join('')}
+        ${opts.map(o => `<label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid ${bj.tipo===o?'var(--navy)':'var(--gray-mid)'};border-radius:20px;cursor:pointer;font-size:13px;background:${bj.tipo===o?'var(--navy)':'#fff'};color:${bj.tipo===o?'#fff':'inherit'}"><input type="radio" name="bj-tipo" value="${o}" ${bj.tipo===o?'checked':''} style="display:none" onchange="selBajaTipo(this)">${o}</label>`).join('')}
       </div>
-      <div class="section-title">DETALLE</div>
-      <textarea id="bj-detalle" rows="4" style="width:100%;padding:10px;border:1.5px solid var(--gray-mid);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none" placeholder="Describí brevemente...">${bj.detalle||''}</textarea>
-      <button onclick="guardarBaja('${c.id}')" style="margin-top:16px;padding:10px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">💾 Guardar</button>
+      
+      <div class="section-title">OBSERVACIONES DE BAJA</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Describí el motivo con detalle — qué pasó, qué se evaluó, por qué no continuó</div>
+      <textarea id="bj-detalle" rows="6" style="width:100%;padding:10px;border:1.5px solid var(--gray-mid);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none" placeholder="Ej: No pasó la instancia técnica con Juan Gasco. Mostró dificultades en IVA y no pudo resolver asientos de forma autónoma...">${bj.detalle||''}</textarea>
+      
+      <button onclick="guardarBaja('${c.id}')" style="margin-top:12px;padding:10px 24px;background:var(--navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">💾 Guardar</button>
+      <span id="bj-flash" style="font-size:12px;color:var(--verde);margin-left:10px;opacity:0;transition:opacity .3s">✓ Guardado</span>
     `;
   }
 }
 
+// Editable block
 function editableBlock(c, campo, texto) {
   const escaped = texto.replace(/</g,'&lt;').replace(/>/g,'&gt;');
   return `<div class="editable-block" id="blk-${c.id}-${campo}" ondblclick="startEdit('${c.id}','${campo}')">
@@ -697,31 +679,14 @@ async function saveEdit(cId, campo) {
   const c = CANDIDATOS.find(x => x.id === cId);
   const val = el.querySelector('textarea').value;
   c[campo] = val;
-  c.has_report = true;
+  if (campo !== 'resumen') c.has_report = true;
   el.classList.remove('editing');
   el.innerHTML = `<div class="blk-text">${val.replace(/</g,'&lt;').replace(/>/g,'&gt;') || '<span style="color:#aaa;font-style:italic">Doble clic para editar...</span>'}</div>`;
   await guardarCandidato(c);
   renderLista();
 }
 
-async function guardarDatos(cId) {
-  const c = CANDIDATOS.find(x => x.id === cId);
-  c.nombre = document.getElementById('ed-nombre').value.trim() || c.nombre;
-  c.edad = parseInt(document.getElementById('ed-edad').value) || null;
-  c.celular = document.getElementById('ed-celular').value.trim();
-  c.mail = document.getElementById('ed-mail').value.trim();
-  c.localidad = document.getElementById('ed-localidad').value.trim();
-  c.distancia = document.getElementById('ed-distancia').value.trim();
-  c.carrera = document.getElementById('ed-carrera').value.trim();
-  c.experiencia = document.getElementById('ed-experiencia').value.trim();
-  c.fuente = document.getElementById('ed-fuente').value;
-  c.entrevista1 = document.getElementById('ed-ent1').value.trim();
-  c.entrevista2 = document.getElementById('ed-ent2').value.trim();
-  await guardarCandidato(c);
-  renderLista();
-  renderDetalle();
-}
-
+// State changes
 async function cambiarSemaforo(cId, sem) {
   const c = CANDIDATOS.find(x => x.id === cId);
   c.semaforo = sem;
@@ -782,51 +747,54 @@ async function generarInforme() {
   const btn = document.getElementById('btn-generar');
   btn.disabled = true; btn.textContent = '⏳ Generando...';
 
-  // Dividir transcripción en dos mitades para evitar timeout de Netlify
-  const mitad = Math.floor(texto.length / 2);
-  const corte = texto.indexOf('\n', mitad);
-  const parte1 = texto.substring(0, corte > 0 ? corte : mitad);
-  const parte2 = texto.substring(corte > 0 ? corte : mitad);
+  const prompt = `Sos Zulma Cabrera, Responsable de RRHH en Grupo GNP, firma de profesionales tributarios (~43 empleados) en Recoleta, CABA.
 
-  const cabecera = `Candidato: ${c.nombre} | Área: ${c.area||'A definir'} | Edad: ${c.edad||'N/D'} | Carrera: ${c.carrera||''} | Localidad: ${c.localidad||''}`;
+CONTEXTO GNP:
+- Estructura piramidal: juniors → seniors → gerentes → socios
+- Modalidad híbrida: 2 días home. Presencialidad absoluta en PEAK (abr-jun)
+- PEAK period: sin horas extras pagas, con bono anual
+- Time Report obligatorio
+- Revisión salarial trimestral
+- Plan de carrera claro
+- Asignación de 6 clientes de distintos rubros
 
-  const prompt1 = `Sos Zulma Cabrera, RRHH de Grupo GNP (firma tributaria, Recoleta). Leé esta PRIMERA PARTE de una transcripción de entrevista y extraé los datos clave del candidato. No redactes el informe todavía, solo listá los puntos importantes que encontrás.
+CANDIDATO: \${c.nombre}
+ÁREA: \${c.area||'A definir'} | EDAD: \${c.edad||'N/D'} años | CARRERA: \${c.carrera||''} | LOCALIDAD: \${c.localidad||''}
 
-${cabecera}
+TRANSCRIPCIÓN DE LA ENTREVISTA:
+\${texto}
 
-PRIMERA PARTE DE LA TRANSCRIPCIÓN:
-${parte1}`;
+INSTRUCCIONES:
+- Escribí en primera persona como si fuera tu análisis directo, no una transcripción
+- NO uses "mencionó", "dijo que", "comentó" — escribí como tu observación
+- NO uses bullets ni listas
+- Reemplazá cualquier mención a "PIC" por "PEAK"
+- Estilo: narrativo, fluido, profesional pero directo
 
-  const prompt2 = `Sos Zulma Cabrera, RRHH de Grupo GNP (firma tributaria, Recoleta). Leé esta SEGUNDA PARTE de la transcripción y completá el análisis.
+Devolvé EXACTAMENTE dos secciones separadas por ===CONCLUSION===:
 
-${cabecera}
+SECCIÓN 1 — INFORME SOFT (4-6 párrafos):
+· Quién es: edad, dónde vive, con quién, historia personal relevante
+· Formación: carrera, universidad, materias clave cursadas/aprobadas, promedio si lo mencionó
+· Experiencia laboral: dónde trabajó, qué hacía, por qué se va
+· Recepción del modelo GNP: cómo reaccionó a la propuesta, preguntas que hizo
+· Disponibilidad y pretensión salarial
+· Cualquier dato que no figura en el CV pero surgió en la entrevista
 
-SEGUNDA PARTE DE LA TRANSCRIPCIÓN:
-${parte2}
+SECCIÓN 2 — EN CONCLUSIÓN (1 párrafo):
+Síntesis del perfil en una frase, la variable crítica a validar en la técnica, y la situación operativa (disponibilidad, restricciones, pretensión vs banda).
 
-Con todo lo que surge de ambas partes, redactá el informe final en primera persona, estilo narrativo, sin bullets, sin "mencionó/dijo/comentó". Reemplazá "PIC" por "PEAK".
-
-Devolvé exactamente dos bloques separados por ===CONCLUSION===:
-
-BLOQUE 1 — INFORME SOFT (4-5 párrafos): quién es y dónde vive, formación y materias clave, experiencia laboral y motivo de salida, cómo recibió el modelo GNP, disponibilidad y pretensión salarial.
-
-BLOQUE 2 — EN CONCLUSIÓN (1 párrafo): síntesis del perfil, variable crítica para la técnica, situación operativa.
-
-Solo el texto, sin títulos.`;
+Solo el texto, sin títulos ni encabezados.`;
 
   try {
-    btn.textContent = '⏳ Parte 1/2...';
-    const data1 = await callClaude([{ role: 'user', content: prompt1 }], 600);
-    const resumen1 = data1.content?.[0]?.text || '';
-
-    btn.textContent = '⏳ Parte 2/2...';
-    const data2 = await callClaude([
-      { role: 'user', content: prompt1 },
-      { role: 'assistant', content: resumen1 },
-      { role: 'user', content: prompt2 }
-    ], 1000);
-
-    const txt = data2.content?.[0]?.text || '';
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-calls': 'true' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const txt = data.content?.[0]?.text || '';
     const partes = txt.split('===CONCLUSION===');
     _informeGenerado = { soft: (partes[0]||'').trim(), conclusion: (partes[1]||'').trim() };
     document.getElementById('trans-soft').textContent = _informeGenerado.soft;
@@ -939,6 +907,9 @@ Carrera no es CP ni contable = rojo inmediato
 Edad mayor a 28 = rojo inmediato
 Busca part-time = rojo inmediato
 
+CV A PROCESAR:
+\${texto}
+
 Devolvé SOLO este JSON (sin texto adicional, sin markdown):
 {"nombre":"","edad":null,"localidad":"","celular":"","mail":"","carrera":"","experiencia":"","area":"","semaforo":"amarillo","evaluacion":"","distancia":"Consultar"}
 
@@ -957,7 +928,13 @@ Para evaluacion: 1-2 líneas síntesis con área sugerida y observación clave.`
   }
 
   try {
-    const data = await callClaude([{ role: 'user', content: messages_content }], 800);
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type':'application/json', 'x-api-key': CLAUDE_KEY, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-calls':'true' },
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:800, messages:[{role:'user', content:messages_content}] })
+    });
+    const data = await res.json();
     const parsed = JSON.parse(data.content?.[0]?.text?.replace(/```json|```/g,'').trim() || '{}');
     document.getElementById('cr-nombre').value = parsed.nombre||'';
     document.getElementById('cr-edad').value = parsed.edad||'';
@@ -978,8 +955,6 @@ Para evaluacion: 1-2 líneas síntesis con área sugerida y observación clave.`
 async function agregarCV() {
   const nombre = document.getElementById('cr-nombre').value.trim();
   if (!nombre) { alert('El nombre es obligatorio.'); return; }
-  const dup = CANDIDATOS.find(x => x.nombre.toLowerCase().trim() === nombre.toLowerCase().trim());
-  if (dup) { if (!confirm('Ya existe un candidato con el nombre "' + nombre + '". ¿Querés agregarlo igual?')) return; }
   const makeId = n => 'cv-' + n.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').substring(0,25) + '-' + Date.now().toString(36);
   const nuevo = {
     id: makeId(nombre), nombre, edad: parseInt(document.getElementById('cr-edad').value)||null,
@@ -1008,6 +983,7 @@ async function mostrarEstadisticas() {
   panel.innerHTML = '<div style="padding:24px"><div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:16px">📊 Estadísticas del proceso</div><div style="color:#888;font-size:13px">Cargando datos...</div></div>';
   panel.classList.add('mobile-open');
 
+  // Load from Supabase
   const [{ data: campanas }, { data: reqs_db }] = await Promise.all([
     sb.from('campanas').select('*'),
     sb.from('requerimientos').select('*')
@@ -1052,6 +1028,7 @@ async function mostrarEstadisticas() {
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>'+nombre+'</span><span style="font-weight:600;color:'+(col||'#888')+'">'+count+' <span style="color:#ccc">('+pct+'%)</span></span></div><div style="background:var(--gray-mid);border-radius:4px;height:6px"><div style="background:'+(col||'var(--navy)')+';height:100%;width:'+pct+'%;border-radius:4px"></div></div></div>';
   }
 
+  // Fuentes from pipeline
   const canalMap = {};
   v.forEach(c => {
     const fl = (c.fuente||'').toLowerCase();
@@ -1062,6 +1039,7 @@ async function mostrarEstadisticas() {
     if (c.semaforo==='violeta') canalMap[k].contrat++;
   });
 
+  // Motivos de baja
   const bajaTipos = {};
   v.forEach(c => {
     if (c.semaforo==='negro') bajaTipos['Se bajó solo']=(bajaTipos['Se bajó solo']||0)+1;
@@ -1072,6 +1050,7 @@ async function mostrarEstadisticas() {
   let h = '<div style="padding:24px;overflow-y:auto">';
   h += '<div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:16px">📊 Estadísticas del proceso</div>';
   
+  // KPIs
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">';
   h += kpi('Total CVs', 459, 'var(--navy)', 'según Excel madre');
   h += kpi('Contratados', contratados, 'var(--verde)');
@@ -1081,8 +1060,9 @@ async function mostrarEstadisticas() {
   h += kpi('Búsquedas abiertas', reqsAbiertos, 'var(--rojo)');
   h += '</div>';
 
+  // Inversión
   h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
-  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-weight:600;color:var(--navy)">💰 Inversión en reclutamiento</span></div>';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-weight:600;color:var(--navy)">💰 Inversión en reclutamiento</span><button onclick="cfgTab(\'campanas\');document.getElementById(\'modal-config\').classList.add(\'open\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-mid);background:#fff;border-radius:14px;cursor:pointer">+ Agregar campaña</button></div>';
   h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">';
   h += kpi('Inversión total', '$'+totalCosto.toLocaleString('es-AR'), 'var(--rojo)');
   h += kpi('Costo x contratado', costoxContratado>0?'$'+costoxContratado.toLocaleString('es-AR'):'—', 'var(--amarillo)');
@@ -1092,21 +1072,23 @@ async function mostrarEstadisticas() {
     const cvs = c.cvs_recibidos||c.cvs||0;
     const costo = c.costo||c.costo_total||0;
     const det = c.detalle||'';
-    h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--gray-light)"><span><strong>'+(c.nombre||c.fuente||'')+'</strong>'+(det?' — <span style=\'color:#888\'>'+det+'</span>':'')+'</span><span>'+cvs+' CVs · $'+costo.toLocaleString('es-AR')+(cvs>0&&costo>0?' · $'+Math.round(costo/cvs).toLocaleString('es-AR')+'/CV':costo===0?' · Gratuito':'')+'</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--gray-light)"><span><strong>'+c.nombre+'</strong>'+(det?' — <span style=\'color:#888\'>'+det+'</span>':'')+'</span><span>'+cvs+' CVs · $'+costo.toLocaleString('es-AR')+(cvs>0&&costo>0?' · $'+Math.round(costo/cvs).toLocaleString('es-AR')+'/CV':costo===0?' · Gratuito':'')+'</span></div>';
   });
   h += '</div>';
 
+  // Requerimientos
   h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
-  h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">📋 Requerimientos · Días prom: '+diasProm+'d</div>';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-weight:600;color:var(--navy)">📋 Requerimientos · Días prom: '+diasProm+'d</span><button onclick="cfgTab(\'reqs\');document.getElementById(\'modal-config\').classList.add(\'open\')" style="font-size:11px;padding:4px 10px;border:1px solid var(--gray-mid);background:#fff;border-radius:14px;cursor:pointer">+ Nueva búsqueda</button></div>';
   reqsData.forEach(r => {
-    const col = (r.estado)==='Cubierto'?'var(--verde)':'var(--rojo)';
+    const col = (r.estado||r.estado)==='Cubierto'?'var(--verde)':'var(--rojo)';
     const apt = (r.fecha_apertura||r.apertura||'').substring(0,10);
     const cob = (r.fecha_cobertura||r.cobertura||'');
     const cobStr = cob && !cob.startsWith('=') ? cob.substring(0,10) : '—';
-    h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--gray-light)"><span><strong>'+(r.id||'')+'</strong> — '+(r.area||'')+' ('+(r.motivo||'')+')</span><span style="color:'+col+';font-weight:600">'+(r.estado||'Abierto')+(cobStr!=='—'?' · '+cobStr:'')+'</span></div>';
+    h += '<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--gray-light)"><span><strong>'+(r.id||r.id)+'</strong> — '+(r.area||'')+' ('+(r.motivo||'')+')</span><span style="color:'+col+';font-weight:600">'+(r.estado||'Abierto')+(cobStr!=='—'?' · '+cobStr:'')+'</span></div>';
   });
   h += '</div>';
 
+  // Fuentes
   const sortedCanales = Object.keys(canalMap).sort((a,b)=>canalMap[b].total-canalMap[a].total);
   const colores = ['var(--navy)','var(--azul)','var(--violeta)','var(--amarillo)','var(--rojo)','var(--verde)','#e67e22'];
   h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
@@ -1117,6 +1099,7 @@ async function mostrarEstadisticas() {
   });
   h += '</div>';
 
+  // Motivos
   const sortedBajas = Object.keys(bajaTipos).sort((a,b)=>bajaTipos[b]-bajaTipos[a]);
   const totalBajas = seBajaron+descartados;
   h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
@@ -1128,6 +1111,7 @@ async function mostrarEstadisticas() {
   }
   h += '</div>';
 
+  // ROI
   h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
   h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">🔄 ROI — Retención de ingresados</div>';
   h += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
@@ -1139,6 +1123,7 @@ async function mostrarEstadisticas() {
   });
   h += '</table></div>';
 
+  // Metas
   h += '<div style="border-top:1px solid var(--gray-mid);padding-top:16px;margin-bottom:16px">';
   h += '<div style="font-weight:600;color:var(--navy);margin-bottom:12px">🎯 Metas e indicadores</div>';
   h += '<table style="width:100%;font-size:12px;border-collapse:collapse">';
@@ -1151,4 +1136,40 @@ async function mostrarEstadisticas() {
   h += '</div>';
   panel.innerHTML = h;
 }
-</script></document_content></body></html>
+function kpi(label, val, color) {
+  return `<div style="background:#fff;border:1px solid var(--gray-mid);border-radius:10px;padding:14px;text-align:center">
+    <div style="font-size:24px;font-weight:700;color:${color||'var(--navy)'}">${val}</div>
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-top:4px">${label}</div>
+  </div>`;
+}
+
+function fuentesBars() {
+  const m = {};
+  CANDIDATOS.forEach(c => {
+    const fl = (c.fuente||'').toLowerCase();
+    const k = fl.includes('headhunt') ? 'LinkedIn Headhunting' : fl.includes('linkedin') ? 'LinkedIn Anuncio' : fl.includes('econtech')||fl.includes('evento') ? 'EconTech / Evento' : fl.includes('bolsa') ? 'Bolsa Universitaria' : fl.includes('espontáneo')||fl.includes('espontaneo') ? 'CV Espontáneo' : fl.includes('cátedra')||fl.includes('docencia') ? 'Cátedra' : 'Otros';
+    m[k] = (m[k]||0)+1;
+  });
+  const total = CANDIDATOS.length;
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${k}</span><span style="font-weight:600">${v} <span style="color:#aaa">(${Math.round(v/total*100)}%)</span></span></div>
+      <div style="background:var(--gray-mid);border-radius:4px;height:6px"><div style="background:var(--navy);height:100%;width:${Math.round(v/total*100)}%;border-radius:4px"></div></div>
+    </div>`).join('');
+}
+
+function motivosBars() {
+  const m = {};
+  CANDIDATOS.forEach(c => {
+    if (c.semaforo==='negro') m['Se bajó solo']=(m['Se bajó solo']||0)+1;
+    else if (c.semaforo==='rojo') { const t=(c.motivo_baja&&c.motivo_baja.tipo)||'No pasó la técnica'; m[t]=(m[t]||0)+1; }
+  });
+  const total = Object.values(m).reduce((a,b)=>a+b,0)||1;
+  const cols = {'No pasó la técnica':'var(--rojo)','Se bajó solo':'var(--violeta)','Oferta salarial no aceptada':'var(--amarillo)','Aceptó otra oferta':'#e67e22','Distancia / logística':'#888'};
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([k,v]) => `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span>${k}</span><span style="font-weight:600;color:${cols[k]||'#888'}">${v}</span></div>
+      <div style="background:var(--gray-mid);border-radius:4px;height:6px"><div style="background:${cols[k]||'#888'};height:100%;width:${Math.round(v/total*100)}%;border-radius:4px"></div></div>
+    </div>`).join('') || '<div style="font-size:12px;color:#aaa;font-style:italic">Completá los motivos en cada candidato descartado</div>';
+}
+</script>
